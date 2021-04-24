@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+"""
+Main script to run fiscalcrypt tool
+
+.. moduleauthor:: Armand BENETEAU <armand.beneteau@iot.bzh>
+
+*Date: 24/04/2021*
+
+*License:*
+    Copyright (C) 2021 Armand Bénéteau
+
+    This file is part of the Fiscal Crypt project.
+
+    GNU General Public License Usage
+    This file may be used under the terms of the GNU General \
+    Public license version 3. This license is as published by the Free Software \
+    Foundation and appearing in the file LICENSE included in the packaging \
+    of this file. Please review the following information to ensure the GNU \
+    General Public License requirements will be met \
+    https://www.gnu.org/licenses/gpl-3.0.html.
+"""
+import datetime
+
+from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
+
+if __name__ == "__main__":
+
+    finder = CoinbaseProFinder()
+
+    # One year ago
+    time_now_last_year = datetime.datetime.now().replace(year=2020)
+    price = finder.get_price_of("XLM-EUR", time_now_last_year)
+
+    print(f"XLM price one year ago: {price} €")
+
+    # Begin of 2020
+    begin_2020 = datetime.datetime(year=2020, month=1, day=1, hour=0, minute=30)
+    price_january = finder.get_price_of("XLM-EUR", begin_2020)
+
+    print(f"XLM price january: {price_january} €")
