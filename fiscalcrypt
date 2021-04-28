@@ -29,13 +29,13 @@ if __name__ == "__main__":
     finder = CoinbaseProFinder()
 
     # One year ago
-    time_now_last_year = datetime.datetime.now().replace(year=2020)
+    time_now_last_year = datetime.datetime.now().date().year - 1
     price = finder.get_price_of("XLM-EUR", time_now_last_year)
 
     print(f"XLM price one year ago: {price} €")
 
-    # Begin of 2020
-    begin_2020 = datetime.datetime(year=2020, month=1, day=1, hour=0, minute=30)
-    price_january = finder.get_price_of("XLM-EUR", begin_2020)
+    # Begin of last year
+    begin_last_year = datetime.datetime(year=time_now_last_year, month=1, day=1, hour=0, minute=30)
+    price_january = finder.get_price_of("XLM-EUR", begin_last_year)
 
     print(f"XLM price january: {price_january} €")
