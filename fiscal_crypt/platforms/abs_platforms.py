@@ -1,5 +1,5 @@
 """
-File containing the PriceFinder abstract class
+File containing the PlatformInterface abstract class
 
 .. moduleauthor:: Armand BENETEAU <armand.beneteau@iot.bzh>
 
@@ -23,23 +23,22 @@ import abc
 import datetime
 
 
-class PriceFinder(abc.ABC):
+class PlatformInterface(abc.ABC):
     """
-    Abstract class giving a model for the implementation of price finders.
-    Several platforms can be used to retrieve the price of a crypto-currency
-    at a given time. For each platform we want to use, a sub-class of "PriceFinder"
-    needs to be implemented.
+    Abstract class giving a model for the implementation of platform interface.
+    Several platforms can be used to calculate the amount of crypto detained by a user
+    at a given time. For each platform we want to use, a sub-class of "PlatformInterface"
     """
 
     @abc.abstractmethod
-    def get_price_of(self, currency: str, time: datetime.datetime):
+    def get_all_wallets_value(self, currency: str, time: datetime.datetime):
         """
-        This function allows to get the price of a crypto-currency at a given
-        datetime.
+        This function allows to get the value of all the crypto-wallets of
+        a user at a given time
 
-        :param currency: Currency we want the price of (ISO 4217)
+        :param currency: Fiat currency we want for the value (ISO 4217)
         :type currency: str
-        :param time: Time where the price is wanted
+        :param time: Time where the value is wanted
         :type time: datetime.datetime
         """
         pass

@@ -20,22 +20,28 @@ Main script to run fiscalcrypt tool
     General Public License requirements will be met \
     https://www.gnu.org/licenses/gpl-3.0.html.
 """
-import datetime
+import json
+import sys
 
 from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
+from fiscal_crypt.platforms.coinbase import CoinbaseInterface
+from fiscal_crypt.fcrypt_logging import fcrypt_log
+
+COINBASE_API_KEYS_FILE = "coinbase_keys.json"
 
 if __name__ == "__main__":
 
-    finder = CoinbaseProFinder()
+    try:
+        # Get the file containing the keys
+        with open(COINBASE_API_KEYS_FILE) as keys_file:
+            coinbase_keys = json.load(keys_file)
 
-    # One year ago
-    time_now_last_year = datetime.datetime.now().date().year - 1
-    price = finder.get_price_of("XLM-EUR", time_now_last_year)
+        if ("api_key" not in coinbase_keys) or ("api_secret" not in coinbase_keys):
+            fcrypt_log.error("[CONFIG] Missing keys in configuration file")
+            sys.exit(1)
 
-    print(f"XLM price one year ago: {price} €")
+        coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"])
 
-    # Begin of last year
-    begin_last_year = datetime.datetime(year=time_now_last_year, month=1, day=1, hour=0, minute=30)
-    price_january = finder.get_price_of("XLM-EUR", begin_last_year)
-
-    print(f"XLM price january: {price_january} €")
+    except Exception as err:
+        fcrypt_log.error("[Exception] The following exception occured while fiscalcrypt was running:", str(err))
+        sys.exit(1)

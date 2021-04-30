@@ -21,7 +21,7 @@ File containing the CoinbaseProFinder subclass
 
 import cbpro
 import datetime
-from fiscal_crypt.price_finder.price_finder import PriceFinder
+from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 
 
 class CoinbaseProFinder(PriceFinder):
@@ -70,12 +70,12 @@ class CoinbaseProFinder(PriceFinder):
 
         return average
 
-    def get_price_of(self, currency: str, time: datetime.datetime):
+    def get_rate_of(self, currency: str, time: datetime.datetime) -> float:
         """
-        This function allows to get the price of a crypto-currency at a given
-        datetime.
+        This function allows to get the rate of a crypto-currency with
+        a fiat currency at a given datetime.
 
-        :param currency: Currency we want the price of (ISO 4217)
+        :param currency: (Currency-fiat) we want the price of, example: BTC-EUR
         :type currency: str
         :param time: Time where the price is wanted
         :type time: datetime.datetime
