@@ -23,7 +23,11 @@ from abc import abstractmethod
 import datetime
 import re
 
+from decimal import *
+from dateutil.parser import isoparse
+
 from coinbase.wallet.client import Client
+from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
 from fiscal_crypt.platforms.abs_platforms import PlatformInterface
 from fiscal_crypt.fcrypt_logging import fcrypt_log
 
@@ -46,21 +50,27 @@ class CoinbaseInterface(PlatformInterface):
         self.accounts = []
         self.transactions = []
 
+        # Initialize the price finder
+        self.price_finder = CoinbaseProFinder()
+
         # Load all accounts and transactions
         self._load_all_accounts()
         self._load_all_transactions()
 
-    def get_all_wallets_value(self, currency: str, time: datetime.datetime):
+    @staticmethod
+    def _extract_account_id(path: str) -> str:
         """
-        This function allows to get the value of all the crypto-wallets of
-        a user at a given time
+        Function allowing to extract an account UUID from a "resource_path" given
+        for each transaction done on Coinbase.
+        """
+        items = path.split("/")
 
-        :param currency: Fiat currency we want for the value (ISO 4217)
-        :type currency: str
-        :param time: Time where the value is wanted
-        :type time: datetime.datetime
-        """
-        pass
+        # Check that the path look like we want
+        if items[2] != "accounts":
+            raise ValueError("It looks like the resource path is not like we want...")
+
+        # Return the account id
+        return items[3]
 
     def _load_all_accounts(self):
         """
@@ -106,26 +116,88 @@ class CoinbaseInterface(PlatformInterface):
 
             # Print the transactions
             for transaction in tmp_transactions['data']:
+                # print(transaction)
                 amount = transaction['amount']['amount']
                 currency = transaction['amount']['currency']
+                date = transaction['updated_at']
                 if not str.startswith(amount, "-"):
                     amount = "+" + amount
                 account = self._extract_account_id(transaction['resource_path'])
-                fcrypt_log.debug(f"[TRANSACTION] {amount} {currency} ==> {account}")
+                fcrypt_log.debug(f"[TRANSACTION] {date}: {amount} {currency} ==> {account}")
 
             self.transactions.extend(tmp_transactions['data'])
 
-    @staticmethod
-    def _extract_account_id(path: str) -> str:
+    def get_wallet_balance_at(self, currency: str, time: datetime.datetime) -> Decimal:
         """
-        Function allowing to extract an account UUID from a "resource_path" given
-        for each transaction done on Coinbase.
+        This function allows to get the balance of a wallet at a given time.
+
+        :param currency: Currency we want the value for
+        :type currency: str
+        :param time: Time where the value is wanted
+        :type time: datetime.datetime
         """
-        items = path.split("/")
+        # Firstly, get the corresponding account ID
+        account_id = ""
+        for account in self.accounts:
+            if ('currency' in account) and (account['currency'] == currency):
+                account_id = account['id']
+                current_balance = Decimal(account['balance']['amount'])
 
-        # Check that the path look like we want
-        if items[2] != "accounts":
-            raise ValueError("It looks like the resource path is not like we want...")
+        if account_id == "":
+            raise ValueError("No account found for this currency")
 
-        # Return the account id
-        return items[3]
+        # Then apply every transaction in reverse if the datetime of this transaction
+        # is posterior to the wanted datetime
+        for transaction in self.transactions:
+            # Extract account ID
+            tmp_account_id = self._extract_account_id(transaction['resource_path'])
+            # Check if the account ids correspond
+            if (tmp_account_id == account_id) and transaction['status'] == 'completed':
+                # Extract the datetime
+                operation_datetime = isoparse(transaction['updated_at'])
+                # If datetime posterior or equal to the time given by user, reverse it
+                if operation_datetime >= time:
+                    trans_amount = Decimal(transaction['amount']['amount'])
+                    tmp_balance = current_balance - trans_amount
+                    fcrypt_log.debug(f"[REVERSED TRANSACTION] {trans_amount} {currency} ==> {account_id}")
+                    fcrypt_log.debug(
+                        f"[REVERSED TRANSACTION] Operation {current_balance}-{trans_amount} = {tmp_balance}")
+                    current_balance = tmp_balance
+
+        return current_balance
+
+    def get_wallet_value_at(self, crypto_currency: str, fiat_currency: str, time: datetime.datetime) -> Decimal:
+        """
+        This function allows to get the value of a wallet at a given time.
+
+        :param crypto_currency: Crypto currency of the wallet
+        :type crypto_currency: str
+        :param fiat_currency: Fiat currency for the result (EUR, USD, etc.)
+        :type fiat_currency: str
+        :param time: Time where the value is wanted
+        :type time: datetime.datetime
+        """
+        # Firstly, get the wallet balance at the given time
+        balance = self.get_wallet_balance_at(crypto_currency, time)
+
+        time_str = str(time)
+        normal_balance = str(balance.normalize())
+        fcrypt_log.info(f"[WALLET] Balance at {time_str}: {normal_balance} {crypto_currency}")
+
+        # Now get the equivalent value in fiat
+        rate_currency = crypto_currency + "-" + fiat_currency
+        wallet_value = self.price_finder.get_rate_of(rate_currency, time) * balance
+
+        return wallet_value
+
+    def get_all_wallets_value(self, currency: str, time: datetime.datetime):
+        """
+        This function allows to get the value of all the crypto-wallets of
+        a user at a given time
+
+        :param currency: Fiat currency we want for the value (ISO 4217)
+        :type currency: str
+        :param time: Time where the value is wanted
+        :type time: datetime.datetime
+        """
+        pass

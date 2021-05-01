@@ -22,6 +22,9 @@ Main script to run fiscalcrypt tool
 """
 import json
 import sys
+from datetime import datetime
+from dateutil.parser import isoparse
+from decimal import *
 
 from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
 from fiscal_crypt.platforms.coinbase import CoinbaseInterface
@@ -40,7 +43,17 @@ if __name__ == "__main__":
             fcrypt_log.error("[CONFIG] Missing keys in configuration file")
             sys.exit(1)
 
+        # Create coinbase interface
         coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"])
+
+        value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
+        normal_value = value.normalize()
+
+        # Round to two places
+        TWOPLACES = Decimal(10) ** -2
+        display_value = normal_value.quantize(TWOPLACES)
+
+        print(f"VALUE {str(display_value)} €")
 
     except Exception as err:
         fcrypt_log.error("[Exception] The following exception occured while fiscalcrypt was running:", str(err))

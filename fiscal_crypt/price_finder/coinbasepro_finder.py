@@ -21,6 +21,7 @@ File containing the CoinbaseProFinder subclass
 
 import cbpro
 import datetime
+from decimal import *
 from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 
 
@@ -39,7 +40,7 @@ class CoinbaseProFinder(PriceFinder):
         self.api_client = cbpro.PublicClient()
 
     @staticmethod
-    def _calculate_average(rates: list) -> float:
+    def _calculate_average(rates: list) -> Decimal:
         """
         Calculate the average of the price from a list of "bucket".
         For more information, see:
@@ -50,14 +51,14 @@ class CoinbaseProFinder(PriceFinder):
         :type rates: list
         """
         # Go through the different rates and get what we want
-        full_volume = 0.0
-        full_prices = 0.0
+        full_volume = Decimal(0.0)
+        full_prices = Decimal(0.0)
         for rate in rates:
             # Calculate the middle price
-            middle_price = (float(rate[1]) + float(rate[2])) / 2
+            middle_price = (Decimal(rate[1]) + Decimal(rate[2])) / 2
 
             # Get the volume
-            volume = float(rate[5])
+            volume = Decimal(rate[5])
 
             # Add the middle_price multiplied by the volume to full_prices
             full_prices = full_prices + (middle_price * volume)
@@ -70,7 +71,7 @@ class CoinbaseProFinder(PriceFinder):
 
         return average
 
-    def get_rate_of(self, currency: str, time: datetime.datetime) -> float:
+    def get_rate_of(self, currency: str, time: datetime.datetime) -> Decimal:
         """
         This function allows to get the rate of a crypto-currency with
         a fiat currency at a given datetime.
@@ -85,9 +86,12 @@ class CoinbaseProFinder(PriceFinder):
         startTime = time.replace(microsecond=0, second=0, minute=0)
         endTime = startTime + datetime.timedelta(hours=1.0)
 
+        iso_start = startTime.isoformat()
+        iso_end = endTime.isoformat()
+
         # Get the historic price for this time
         historic_rates = self.api_client.get_product_historic_rates(
-            currency, start=startTime.isoformat(), end=endTime.isoformat(), granularity=60)
+            currency, start=iso_start, end=iso_end, granularity=60)
 
         # Calculate the average for the hour that interest us
         average = self._calculate_average(historic_rates)
