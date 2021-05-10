@@ -46,7 +46,10 @@ if __name__ == "__main__":
         # Create coinbase interface
         coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"])
 
-        value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
+        # value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
+        # normal_value = value.normalize()
+
+        value = coinbase.get_all_wallets_value("EUR", isoparse("2020-02-14T00:30:00Z"))
         normal_value = value.normalize()
 
         # Round to two places

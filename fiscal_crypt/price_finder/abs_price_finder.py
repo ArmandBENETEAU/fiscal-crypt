@@ -40,5 +40,6 @@ class PriceFinder(abc.ABC):
         :type currency: str
         :param time: Time where the price is wanted
         :type time: datetime.datetime
+        :returns: Decimal -- The average rate of the given currency
         """
         pass

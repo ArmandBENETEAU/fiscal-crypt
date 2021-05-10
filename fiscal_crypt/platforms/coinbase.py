@@ -26,6 +26,9 @@ import re
 from decimal import *
 from dateutil.parser import isoparse
 
+import urllib.parse as urlparse
+from urllib.parse import parse_qs
+
 from coinbase.wallet.client import Client
 from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
 from fiscal_crypt.platforms.abs_platforms import PlatformInterface
@@ -62,6 +65,9 @@ class CoinbaseInterface(PlatformInterface):
         """
         Function allowing to extract an account UUID from a "resource_path" given
         for each transaction done on Coinbase.
+        :param path: "resource_path" to extract the account id from
+        :type path: str
+        :returns: str -- The account id
         """
         items = path.split("/")
 
@@ -72,17 +78,45 @@ class CoinbaseInterface(PlatformInterface):
         # Return the account id
         return items[3]
 
+    @staticmethod
+    def _extract_starting_after_param(next_uri: str) -> str:
+        """
+        Function allowing to extract the "starting_after" parameter from the "next_uri"
+        parameter given by the API in the pagination object
+        :param path: "next_uri" given in the pagination object
+        :type path: str
+        :returns: str -- The "starting_after" id
+        """
+        starting_after_value = ""
+
+        # Check if at least the string we want is in the uri
+        if "starting_after" not in next_uri:
+            return starting_after_value
+
+        # Try to get the query parameters
+        parsed = urlparse.urlparse(next_uri)
+        starting_after_value = parse_qs(parsed.query)['starting_after'][0]
+
+        return starting_after_value
+
     def _load_all_accounts(self):
         """
         This function allows to load every account that the user has on Coinbase
         These accounts will be used to calculate the taxes, 'in fine'.
         Only the accounts with an real UUID are taken into account
         """
-        # Get all accounts
-        tmp_accounts_list = self.api_client.get_accounts()
+        # Get really all the accounts (pagination taken into account)
+        tmp_accounts_list = []
+        other_pages = True
+        while other_pages:
+            api_answer = self.api_client.get_accounts()
+            tmp_accounts_list.append(api_answer['data'])
+            if (api_answer.pagination is not None) and (api_answer.pagination["next_uri"] != ""):
+                # TODO
+                pass
 
-        # Print all used accounts
-        for account in tmp_accounts_list['data']:
+        # Save all used accounts
+        for account in tmp_accounts_list:
 
             # If the ID is a valid UUID, save the account and print it in DEBUG logs
             match = re.search(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", account['id'])
@@ -135,6 +169,7 @@ class CoinbaseInterface(PlatformInterface):
         :type currency: str
         :param time: Time where the value is wanted
         :type time: datetime.datetime
+        :returns: Decimal -- The wallet balance at the given time
         """
         # Firstly, get the corresponding account ID
         account_id = ""
@@ -176,21 +211,44 @@ class CoinbaseInterface(PlatformInterface):
         :type fiat_currency: str
         :param time: Time where the value is wanted
         :type time: datetime.datetime
+        :returns: Decimal -- The wallet value at the given time
         """
         # Firstly, get the wallet balance at the given time
         balance = self.get_wallet_balance_at(crypto_currency, time)
 
         time_str = str(time)
         normal_balance = str(balance.normalize())
+
+        # Print info
         fcrypt_log.info(f"[WALLET] Balance at {time_str}: {normal_balance} {crypto_currency}")
 
-        # Now get the equivalent value in fiat
-        rate_currency = crypto_currency + "-" + fiat_currency
-        wallet_value = self.price_finder.get_rate_of(rate_currency, time) * balance
+        if balance != 0:
+
+            # Now get the equivalent value in fiat
+            rate_currency = crypto_currency + "-" + fiat_currency
+            rate_value = self.price_finder.get_rate_of(rate_currency, time)
+
+            if rate_value == Decimal(0):
+                # Print error
+                fcrypt_log.error(
+                    f"[WALLET] NO RATE FOUND FOR NOT NULL BALANCE !!! Currency: {crypto_currency}",
+                    f"Fiat: {fiat_currency}")
+                # Return 0
+                wallet_value = Decimal(0)
+            else:
+                # Calculate the wallet value
+                wallet_value = rate_value * balance
+
+                # Print info
+                fcrypt_log.info(
+                    f"[WALLET] Value of {crypto_currency} wallet at {time_str}: {wallet_value} {fiat_currency}")
+
+        else:
+            wallet_value = Decimal(0)
 
         return wallet_value
 
-    def get_all_wallets_value(self, currency: str, time: datetime.datetime):
+    def get_all_wallets_value(self, currency: str, time: datetime.datetime) -> Decimal:
         """
         This function allows to get the value of all the crypto-wallets of
         a user at a given time
@@ -199,5 +257,16 @@ class CoinbaseInterface(PlatformInterface):
         :type currency: str
         :param time: Time where the value is wanted
         :type time: datetime.datetime
+        :returns: Decimal -- The overall value at the given time
         """
-        pass
+        # Initialize overall value of the wallet
+        overall_value = Decimal(0)
+
+        # For each crypto account (except fiat currency), calculate the wallet value
+        for account in self.accounts:
+            if account['currency'] != currency:
+                wallet_value = self.get_wallet_value_at(account['currency'], currency, time)
+                # Add the wallet value to the overall value
+                overall_value += wallet_value
+
+        return overall_value

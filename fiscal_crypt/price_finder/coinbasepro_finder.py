@@ -49,6 +49,7 @@ class CoinbaseProFinder(PriceFinder):
 
         :param rates: List of "buckets" containing the prices candles
         :type rates: list
+        :returns: Decimal -- The average over all the rates
         """
         # Go through the different rates and get what we want
         full_volume = Decimal(0.0)
@@ -66,8 +67,11 @@ class CoinbaseProFinder(PriceFinder):
             # Add the volume to the full_volume
             full_volume = full_volume + volume
 
-        # Calculate the average
-        average = full_prices / full_volume
+        if full_volume != Decimal(0.0):
+            # Calculate the average
+            average = full_prices / full_volume
+        else:
+            average = Decimal(0.0)
 
         return average
 
@@ -80,6 +84,7 @@ class CoinbaseProFinder(PriceFinder):
         :type currency: str
         :param time: Time where the price is wanted
         :type time: datetime.datetime
+        :returns: Decimal -- The average rate of the given currency
         """
         # From the time given, get the "start" time, we will calculate average
         # on only one hour
@@ -93,7 +98,10 @@ class CoinbaseProFinder(PriceFinder):
         historic_rates = self.api_client.get_product_historic_rates(
             currency, start=iso_start, end=iso_end, granularity=60)
 
-        # Calculate the average for the hour that interest us
-        average = self._calculate_average(historic_rates)
+        if isinstance(historic_rates, list):
+            # Calculate the average for the hour that interest us
+            average = self._calculate_average(historic_rates)
+        else:
+            average = Decimal(0.0)
 
         return average

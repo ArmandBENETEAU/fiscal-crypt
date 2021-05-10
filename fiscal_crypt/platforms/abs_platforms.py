@@ -22,6 +22,8 @@ File containing the PlatformInterface abstract class
 import abc
 import datetime
 
+from decimal import *
+
 
 class PlatformInterface(abc.ABC):
     """
@@ -31,7 +33,7 @@ class PlatformInterface(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_all_wallets_value(self, currency: str, time: datetime.datetime):
+    def get_all_wallets_value(self, currency: str, time: datetime.datetime) -> Decimal:
         """
         This function allows to get the value of all the crypto-wallets of
         a user at a given time
@@ -40,5 +42,6 @@ class PlatformInterface(abc.ABC):
         :type currency: str
         :param time: Time where the value is wanted
         :type time: datetime.datetime
+        :returns: Decimal -- The overall value at the given time
         """
         pass
