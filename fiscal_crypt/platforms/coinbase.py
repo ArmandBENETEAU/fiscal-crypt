@@ -30,7 +30,7 @@ import urllib.parse as urlparse
 from urllib.parse import parse_qs
 
 from coinbase.wallet.client import Client
-from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
+from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 from fiscal_crypt.platforms.abs_platforms import PlatformInterface
 from fiscal_crypt.fcrypt_logging import fcrypt_log
 
@@ -42,7 +42,7 @@ class CoinbaseInterface(PlatformInterface):
     all the transactions that can be impacted by taxes
     """
 
-    def __init__(self, api_key: str, api_secret: str) -> None:
+    def __init__(self, api_key: str, api_secret: str, price_finder: PriceFinder) -> None:
         # Call the upper class initialization
         super().__init__()
 
@@ -54,10 +54,12 @@ class CoinbaseInterface(PlatformInterface):
         self.transactions = []
 
         # Initialize the price finder
-        self.price_finder = CoinbaseProFinder()
+        self.price_finder = price_finder
 
         # Load all accounts and transactions
+        fcrypt_log.debug("[INITIALIZATION] Loading all accounts...")
         self._load_all_accounts()
+        fcrypt_log.debug("[INITIALIZATION] Loading all transactions...")
         self._load_all_transactions()
 
     @staticmethod

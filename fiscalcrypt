@@ -26,11 +26,12 @@ from datetime import datetime
 from dateutil.parser import isoparse
 from decimal import *
 
-from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
+from fiscal_crypt.price_finder.cryptowatch_finder import CryptowatchFinder
 from fiscal_crypt.platforms.coinbase import CoinbaseInterface
 from fiscal_crypt.fcrypt_logging import fcrypt_log
 
 COINBASE_API_KEYS_FILE = "coinbase_keys.json"
+CRYPTOWATCH_API_KEYS_FILE = "cryptowatch_keys.json"
 
 if __name__ == "__main__":
 
@@ -43,8 +44,18 @@ if __name__ == "__main__":
             fcrypt_log.error("[CONFIG] Missing keys in configuration file")
             sys.exit(1)
 
+        with open(CRYPTOWATCH_API_KEYS_FILE) as keys_file:
+            cryptowatch_keys = json.load(keys_file)
+
+        if ("api_key" not in cryptowatch_keys):
+            fcrypt_log.error("[CONFIG] Missing keys in configuration file")
+            sys.exit(1)
+
+        # Create the cryptowatch interface
+        crypto_finder = CryptowatchFinder(cryptowatch_keys["api_key"], "coinbase-pro")
+
         # Create coinbase interface
-        coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"])
+        coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"], crypto_finder)
 
         # value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
         # normal_value = value.normalize()
