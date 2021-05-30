@@ -57,9 +57,9 @@ class CoinbaseInterface(PlatformInterface):
         self.price_finder = price_finder
 
         # Load all accounts and transactions
-        fcrypt_log.debug("[INITIALIZATION] Loading all accounts...")
+        fcrypt_log.info("[INITIALIZATION] Loading all accounts...")
         self._load_all_accounts()
-        fcrypt_log.debug("[INITIALIZATION] Loading all transactions...")
+        fcrypt_log.info("[INITIALIZATION] Loading all transactions...")
         self._load_all_transactions()
 
     @staticmethod
@@ -107,18 +107,28 @@ class CoinbaseInterface(PlatformInterface):
         These accounts will be used to calculate the taxes, 'in fine'.
         Only the accounts with an real UUID are taken into account
         """
-        # Get really all the accounts (pagination taken into account)
-        tmp_accounts_list = []
+        accounts_list = []
         other_pages = True
+        last_id = ""
         while other_pages:
-            api_answer = self.api_client.get_accounts()
-            tmp_accounts_list.append(api_answer['data'])
+            # Get account according to pagination
+            if last_id == "":
+                api_answer = self.api_client.get_accounts()
+            else:
+                api_answer = self.api_client.get_accounts(starting_after=last_id)
+
+            accounts_list.append(api_answer['data'])
             if (api_answer.pagination is not None) and (api_answer.pagination["next_uri"] != ""):
-                # TODO
+                # TO DEBUG !!!
+                # Extract 'starting_after' key from next_uri
+                parsed = urlparse.urlparse(api_answer.pagination["next_uri"])
+                print(parse_qs(parsed.query)['starting_after'])
                 pass
+            else:
+                other_pages = False
 
         # Save all used accounts
-        for account in tmp_accounts_list:
+        for account in accounts_list:
 
             # If the ID is a valid UUID, save the account and print it in DEBUG logs
             match = re.search(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", account['id'])

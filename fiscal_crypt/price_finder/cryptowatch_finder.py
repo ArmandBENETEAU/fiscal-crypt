@@ -102,7 +102,7 @@ class CryptowatchFinder(PriceFinder):
         url_parameters = {'after': start_timestamp, 'before': end_timestamp}
 
         # Initiate the full URL
-        full_url = f"https://api.cryptowat.ch/markets/kraken/{currency}/ohlc"
+        full_url = f"https://api.cryptowat.ch/markets/{self.exchange_market}/{currency}/ohlc"
 
         # Send the request
         answer = requests.get(full_url, params=url_parameters, headers=headers)
