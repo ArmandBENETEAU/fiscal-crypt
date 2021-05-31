@@ -117,13 +117,14 @@ class CoinbaseInterface(PlatformInterface):
             else:
                 api_answer = self.api_client.get_accounts(starting_after=last_id)
 
-            accounts_list.append(api_answer['data'])
-            if (api_answer.pagination is not None) and (api_answer.pagination["next_uri"] != ""):
-                # TO DEBUG !!!
+            accounts_list = accounts_list + api_answer['data']
+            if ((api_answer.pagination is not None) and (api_answer.pagination["next_uri"] is not None) and
+                    (api_answer.pagination["next_uri"] != "")):
+                # Get the pagination object
+                pagination_obj = api_answer.pagination
                 # Extract 'starting_after' key from next_uri
-                parsed = urlparse.urlparse(api_answer.pagination["next_uri"])
-                print(parse_qs(parsed.query)['starting_after'])
-                pass
+                parsed = urlparse.urlparse(pagination_obj["next_uri"])
+                last_id = parse_qs(parsed.query)['starting_after'][0]
             else:
                 other_pages = False
 
@@ -157,11 +158,32 @@ class CoinbaseInterface(PlatformInterface):
         """
         # Get all transactions
         for account in self.accounts:
-            # Get the transactions for this account
-            tmp_transactions = self.api_client.get_transactions(account['id'])
+            transactions_list = []
+            other_pages = True
+            last_id = ""
+
+            while other_pages:
+                # Get account according to pagination
+                if last_id == "":
+                    # Get the transactions for this account
+                    tmp_transactions = self.api_client.get_transactions(account['id'])
+                else:
+                    # Get the transactions for this account
+                    tmp_transactions = self.api_client.get_transactions(account['id'], starting_after=last_id)
+
+                transactions_list = transactions_list + tmp_transactions['data']
+                if ((tmp_transactions.pagination is not None) and (tmp_transactions.pagination["next_uri"] is not None) and
+                        (tmp_transactions.pagination["next_uri"] != "")):
+                    # Get the pagination object
+                    pagination_obj = tmp_transactions.pagination
+                    # Extract 'starting_after' key from next_uri
+                    parsed = urlparse.urlparse(pagination_obj["next_uri"])
+                    last_id = parse_qs(parsed.query)['starting_after'][0]
+                else:
+                    other_pages = False
 
             # Print the transactions
-            for transaction in tmp_transactions['data']:
+            for transaction in transactions_list:
                 # print(transaction)
                 amount = transaction['amount']['amount']
                 currency = transaction['amount']['currency']
@@ -171,7 +193,7 @@ class CoinbaseInterface(PlatformInterface):
                 account = self._extract_account_id(transaction['resource_path'])
                 fcrypt_log.debug(f"[TRANSACTION] {date}: {amount} {currency} ==> {account}")
 
-            self.transactions.extend(tmp_transactions['data'])
+            self.transactions.extend(transactions_list)
 
     def get_wallet_balance_at(self, currency: str, time: datetime.datetime) -> Decimal:
         """
