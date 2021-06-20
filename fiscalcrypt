@@ -28,9 +28,11 @@ from decimal import *
 
 from fiscal_crypt.price_finder.cryptowatch_finder import CryptowatchFinder
 from fiscal_crypt.platforms.coinbase import CoinbaseInterface
+from fiscal_crypt.platforms.coinbase_pro import CoinbaseProInterface
 from fiscal_crypt.fcrypt_logging import fcrypt_log
 
 COINBASE_API_KEYS_FILE = "coinbase_keys.json"
+COINBASE_PRO_API_KEYS_FILE = "coinbase_pro_keys.json"
 CRYPTOWATCH_API_KEYS_FILE = "cryptowatch_keys.json"
 
 if __name__ == "__main__":
@@ -51,23 +53,39 @@ if __name__ == "__main__":
             fcrypt_log.error("[CONFIG] Missing keys in configuration file")
             sys.exit(1)
 
+        with open(COINBASE_PRO_API_KEYS_FILE) as keys_file:
+            coinbase_pro_keys = json.load(keys_file)
+
+        if (("api_key" not in coinbase_pro_keys) or ("api_secret" not in coinbase_pro_keys) or
+                ("api_passphrase" not in coinbase_pro_keys)):
+            fcrypt_log.error("[CONFIG] Missing keys in configuration file")
+            sys.exit(1)
+
         # Create the cryptowatch interface
         crypto_finder = CryptowatchFinder(cryptowatch_keys["api_key"], "coinbase-pro")
 
         # Create coinbase interface
-        coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"], crypto_finder)
+        # coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"], crypto_finder)
+
+        # Create coinbase pro interface
+        coinbase_pro = CoinbaseProInterface(
+            coinbase_pro_keys["api_key"],
+            coinbase_pro_keys["api_secret"],
+            coinbase_pro_keys["api_passphrase"],
+            crypto_finder)
+        # coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"], crypto_finder)
 
         # value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
         # normal_value = value.normalize()
 
-        value = coinbase.get_all_wallets_value("EUR", isoparse("2020-02-14T00:30:00Z"))
-        normal_value = value.normalize()
+        # value = coinbase.get_all_wallets_value("EUR", isoparse("2020-02-14T00:30:00Z"))
+        # normal_value = value.normalize()
 
-        # Round to two places
-        TWOPLACES = Decimal(10) ** -2
-        display_value = normal_value.quantize(TWOPLACES)
+        # # Round to two places
+        # TWOPLACES = Decimal(10) ** -2
+        # display_value = normal_value.quantize(TWOPLACES)
 
-        print(f"VALUE {str(display_value)} €")
+        # print(f"VALUE {str(display_value)} €")
 
     except Exception as err:
         fcrypt_log.error("[Exception] The following exception occured while fiscalcrypt was running:", str(err))

@@ -20,6 +20,7 @@ File containing the CoinbaseInterface class
 """
 
 from abc import abstractmethod
+import cbpro
 import datetime
 import re
 
@@ -29,25 +30,24 @@ from dateutil.parser import isoparse
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
 
-from coinbase.wallet.client import Client
 from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 from fiscal_crypt.platforms.abs_platforms import PlatformInterface
 from fiscal_crypt.fcrypt_logging import fcrypt_log
 
 
-class CoinbaseInterface(PlatformInterface):
+class CoinbaseProInterface(PlatformInterface):
     """
     Class implementing all the methods allowing to calculate the differents
     overall values of accounts at given times. It allows also to enumerate
     all the transactions that can be impacted by taxes
     """
 
-    def __init__(self, api_key: str, api_secret: str, price_finder: PriceFinder) -> None:
+    def __init__(self, api_key: str, api_secret: str, api_passphrase: str, price_finder: PriceFinder) -> None:
         # Call the upper class initialization
         super().__init__()
 
-        # Create the Coinbase authenticated client that we will use
-        self.api_client = Client(api_key, api_secret)
+        # Create the Coinbase Pro authenticated client that we will use
+        self.api_client = cbpro.AuthenticatedClient(api_key, api_secret, api_passphrase)
 
         # Initialize what will be used next
         self.accounts = []
@@ -60,7 +60,7 @@ class CoinbaseInterface(PlatformInterface):
         fcrypt_log.info("[INITIALIZATION] Loading all accounts...")
         self._load_all_accounts()
         fcrypt_log.info("[INITIALIZATION] Loading all transactions...")
-        self._load_all_transactions()
+        # self._load_all_transactions()
 
     @staticmethod
     def _extract_account_id(path: str) -> str:
@@ -86,26 +86,9 @@ class CoinbaseInterface(PlatformInterface):
         These accounts will be used to calculate the taxes, 'in fine'.
         Only the accounts with an real UUID are taken into account
         """
-        accounts_list = []
-        other_pages = True
-        last_id = ""
-        while other_pages:
-            # Get account according to pagination
-            if last_id == "":
-                api_answer = self.api_client.get_accounts()
-            else:
-                api_answer = self.api_client.get_accounts(starting_after=last_id)
 
-            accounts_list = accounts_list + api_answer['data']
-            if ((api_answer.pagination is not None) and (api_answer.pagination["next_uri"] is not None) and
-                    (api_answer.pagination["next_uri"] != "")):
-                # Get the pagination object
-                pagination_obj = api_answer.pagination
-                # Extract 'starting_after' key from next_uri
-                parsed = urlparse.urlparse(pagination_obj["next_uri"])
-                last_id = parse_qs(parsed.query)['starting_after'][0]
-            else:
-                other_pages = False
+        # Get the list of accounts (not paginated for coinbase pro)
+        accounts_list = self.api_client.get_accounts()
 
         # Save all used accounts
         for account in accounts_list:
@@ -115,16 +98,12 @@ class CoinbaseInterface(PlatformInterface):
             if match:
                 # Get the various values
                 id = account['id']
-                name = account['name']
-                crypto_balance = account['balance']['amount']
+                name = "Account in " + account['currency']
+                crypto_balance = account['available']
                 crypto_currency = account['currency']
-                native_balance = account['native_balance']['amount']
-                native_currency = account['native_balance']['currency']
 
                 # Debug print
-                fcrypt_log.debug(
-                    f"Adding account: {id} ==> {name}: {crypto_balance} {crypto_currency}" +
-                    f" ({native_balance} {native_currency})")
+                fcrypt_log.debug(f"Adding account: {id} ==> {name}: {crypto_balance} {crypto_currency}")
 
                 # Add the account in our list
                 self.accounts.append(account)
