@@ -60,7 +60,7 @@ class CoinbaseProInterface(PlatformInterface):
         fcrypt_log.info("[INITIALIZATION] Loading all accounts...")
         self._load_all_accounts()
         fcrypt_log.info("[INITIALIZATION] Loading all transactions...")
-        # self._load_all_transactions()
+        self._load_all_transactions()
 
     @staticmethod
     def _extract_account_id(path: str) -> str:
@@ -116,43 +116,29 @@ class CoinbaseProInterface(PlatformInterface):
         """
         # Get all transactions
         for account in self.accounts:
-            transactions_list = []
-            other_pages = True
-            last_id = ""
 
-            while other_pages:
-                # Get account according to pagination
-                if last_id == "":
-                    # Get the transactions for this account
-                    tmp_transactions = self.api_client.get_transactions(account['id'])
-                else:
-                    # Get the transactions for this account
-                    tmp_transactions = self.api_client.get_transactions(account['id'], starting_after=last_id)
+            # Get all account history for the current account
+            history_gen = self.api_client.get_account_history(account['id'])
+            movements_list = list(history_gen)
 
-                transactions_list = transactions_list + tmp_transactions['data']
-                if ((tmp_transactions.pagination is not None) and
-                    (tmp_transactions.pagination["next_uri"] is not None) and
-                        (tmp_transactions.pagination["next_uri"] != "")):
-                    # Get the pagination object
-                    pagination_obj = tmp_transactions.pagination
-                    # Extract 'starting_after' key from next_uri
-                    parsed = urlparse.urlparse(pagination_obj["next_uri"])
-                    last_id = parse_qs(parsed.query)['starting_after'][0]
-                else:
-                    other_pages = False
+            # Print and take into account the transactions
+            for movement in movements_list:
+                movement_type = movement.get("type", "[NOT KNOWN]")
+                amount = movement.get("amount", "[NOT KNOWN]")
+                balance = movement.get("balance", "[NOT KNOWN]")
+                details = movement.get("details", "[NOT KNOWN]")
+                date = movement.get("created_at", "[NOT KNOWN]")
 
-            # Print the transactions
-            for transaction in transactions_list:
-                # print(transaction)
-                amount = transaction['amount']['amount']
-                currency = transaction['amount']['currency']
-                date = transaction['updated_at']
                 if not str.startswith(amount, "-"):
                     amount = "+" + amount
-                account = self._extract_account_id(transaction['resource_path'])
-                fcrypt_log.debug(f"[TRANSACTION] {date}: {amount} {currency} ==> {account}")
 
-            self.transactions.extend(transactions_list)
+                # fcrypt_log.debug(f"[TRANSACTION] {date}: {amount} {currency} ==> {account}")
+                fcrypt_log.debug(
+                    f"[TRANSACTION] {movement_type} | {date}: {amount} {account['currency']} ==> {account['id']}")
+                fcrypt_log.debug(f"              Balance: {balance} {account['currency']}")
+                fcrypt_log.debug(f"              Details: {details}")
+
+            self.transactions.extend(movements_list)
 
     def get_wallet_balance_at(self, currency: str, time: datetime.datetime) -> Decimal:
         """
