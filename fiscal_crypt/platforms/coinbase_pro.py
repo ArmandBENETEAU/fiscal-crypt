@@ -132,13 +132,17 @@ class CoinbaseProInterface(PlatformInterface):
                 if not str.startswith(amount, "-"):
                     amount = "+" + amount
 
-                # fcrypt_log.debug(f"[TRANSACTION] {date}: {amount} {currency} ==> {account}")
+                # Copy the dictionary and add the account ID in it
+                tmp_movement = movement.copy()
+                tmp_movement["account_id"] = account['id']
+
                 fcrypt_log.debug(
                     f"[TRANSACTION] {movement_type} | {date}: {amount} {account['currency']} ==> {account['id']}")
                 fcrypt_log.debug(f"              Balance: {balance} {account['currency']}")
                 fcrypt_log.debug(f"              Details: {details}")
 
-            self.transactions.extend(movements_list)
+                # Add the account movement
+                self.transactions.append(tmp_movement)
 
     def get_wallet_balance_at(self, currency: str, time: datetime.datetime) -> Decimal:
         """
@@ -155,7 +159,7 @@ class CoinbaseProInterface(PlatformInterface):
         for account in self.accounts:
             if ('currency' in account) and (account['currency'] == currency):
                 account_id = account['id']
-                current_balance = Decimal(account['balance']['amount'])
+                current_balance = Decimal(account['balance'])
 
         if account_id == "":
             raise ValueError("No account found for this currency")
@@ -164,14 +168,14 @@ class CoinbaseProInterface(PlatformInterface):
         # is posterior to the wanted datetime
         for transaction in self.transactions:
             # Extract account ID
-            tmp_account_id = self._extract_account_id(transaction['resource_path'])
+            tmp_account_id = transaction["account_id"]
             # Check if the account ids correspond
-            if (tmp_account_id == account_id) and transaction['status'] == 'completed':
+            if (tmp_account_id == account_id):
                 # Extract the datetime
-                operation_datetime = isoparse(transaction['updated_at'])
+                operation_datetime = isoparse(transaction['created_at'])
                 # If datetime posterior or equal to the time given by user, reverse it
                 if operation_datetime >= time:
-                    trans_amount = Decimal(transaction['amount']['amount'])
+                    trans_amount = Decimal(transaction['amount'])
                     tmp_balance = current_balance - trans_amount
                     fcrypt_log.debug(f"[REVERSED TRANSACTION] {trans_amount} {currency} ==> {account_id}")
                     fcrypt_log.debug(
