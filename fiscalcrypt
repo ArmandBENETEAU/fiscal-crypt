@@ -68,24 +68,28 @@ if __name__ == "__main__":
         # coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"], crypto_finder)
 
         # Create coinbase pro interface
+        print("!!!!!!! Initialising COINBASE PRO interface")
         coinbase_pro = CoinbaseProInterface(
             coinbase_pro_keys["api_key"],
             coinbase_pro_keys["api_secret"],
             coinbase_pro_keys["api_passphrase"],
             crypto_finder)
-        # coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"], crypto_finder)
 
         # value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
         # normal_value = value.normalize()
 
+        print("!!!!!!! Calculating the wallet value for XLM")
+        value = coinbase_pro.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
+        normal_value = value.normalize()
+
         # value = coinbase.get_all_wallets_value("EUR", isoparse("2020-02-14T00:30:00Z"))
         # normal_value = value.normalize()
 
-        # # Round to two places
-        # TWOPLACES = Decimal(10) ** -2
-        # display_value = normal_value.quantize(TWOPLACES)
+        # Round to two places
+        TWOPLACES = Decimal(10) ** -2
+        display_value = normal_value.quantize(TWOPLACES)
 
-        # print(f"VALUE {str(display_value)} €")
+        print(f"VALUE {str(display_value)} €")
 
     except Exception as err:
         fcrypt_log.error("[Exception] The following exception occured while fiscalcrypt was running:", str(err))

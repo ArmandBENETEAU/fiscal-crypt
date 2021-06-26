@@ -20,6 +20,7 @@ File containing the CoinbaseInterface class
 """
 
 from abc import abstractmethod
+from typing import Generator
 import cbpro
 import datetime
 import re
@@ -253,3 +254,19 @@ class CoinbaseProInterface(PlatformInterface):
                 overall_value += wallet_value
 
         return overall_value
+
+    def all_sell_transactions_generator(self, currency: str, start_time: datetime.datetime, end_time) -> Generator:
+        """
+        This function returns a generator that can be used in a for loop to get
+        every "sell" transactions done between "start_time" and "end_time"
+
+        :param currency: Fiat currency we want for the value (ISO 4217)
+        :type currency: str
+        :param start_time: Begin of the tax period
+        :type start_time: datetime.datetime
+        :param end_time: End of the tax period
+        :type end_time: datetime.datetime
+        :returns: Generator -- Generator to get each transaction object \
+        """
+        # TODO
+        pass

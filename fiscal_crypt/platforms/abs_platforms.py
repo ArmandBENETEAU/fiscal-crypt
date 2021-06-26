@@ -23,6 +23,7 @@ import abc
 import datetime
 
 from decimal import *
+from typing import Generator
 
 
 class PlatformInterface(abc.ABC):
@@ -43,5 +44,23 @@ class PlatformInterface(abc.ABC):
         :param time: Time where the value is wanted
         :type time: datetime.datetime
         :returns: Decimal -- The overall value at the given time
+        """
+        pass
+
+    @abc.abstractmethod
+    def all_sell_transactions_generator(self, currency: str, start_time: datetime.datetime, end_time) -> Generator:
+        """
+        This function returns a generator that can be used in a for loop to get
+        every "sell" transactions done between "start_time" and "end_time"
+
+        :param currency: Fiat currency we want for the value (ISO 4217)
+        :type currency: str
+        :param start_time: Begin of the tax period
+        :type start_time: datetime.datetime
+        :param end_time: End of the tax period
+        :type end_time: datetime.datetime
+        :returns: Generator -- Generator to get each transaction object \
+            The transaction object being:
+            TODO
         """
         pass

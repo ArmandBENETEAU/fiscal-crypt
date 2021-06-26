@@ -24,6 +24,7 @@ import datetime
 import re
 
 from decimal import *
+from typing import Generator
 from dateutil.parser import isoparse
 
 import urllib.parse as urlparse
@@ -284,3 +285,19 @@ class CoinbaseInterface(PlatformInterface):
                 overall_value += wallet_value
 
         return overall_value
+
+    def all_sell_transactions_generator(self, currency: str, start_time: datetime.datetime, end_time) -> Generator:
+        """
+        This function returns a generator that can be used in a for loop to get
+        every "sell" transactions done between "start_time" and "end_time"
+
+        :param currency: Fiat currency we want for the value (ISO 4217)
+        :type currency: str
+        :param start_time: Begin of the tax period
+        :type start_time: datetime.datetime
+        :param end_time: End of the tax period
+        :type end_time: datetime.datetime
+        :returns: Generator -- Generator to get each transaction object \
+        """
+        # TODO
+        pass
