@@ -78,18 +78,30 @@ if __name__ == "__main__":
         # value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
         # normal_value = value.normalize()
 
-        print("!!!!!!! Calculating the wallet value for XLM")
-        value = coinbase_pro.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
-        normal_value = value.normalize()
+        # print("!!!!!!! Calculating the wallet value for XLM")
+        # value = coinbase_pro.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
+        # normal_value = value.normalize()
 
         # value = coinbase.get_all_wallets_value("EUR", isoparse("2020-02-14T00:30:00Z"))
         # normal_value = value.normalize()
 
         # Round to two places
-        TWOPLACES = Decimal(10) ** -2
-        display_value = normal_value.quantize(TWOPLACES)
+        # TWOPLACES = Decimal(10) ** -2
+        # display_value = normal_value.quantize(TWOPLACES)
 
-        print(f"VALUE {str(display_value)} €")
+        # print(f"VALUE {str(display_value)} €")
+
+        # Get all the sell transaction on Coinbase Pro
+        print("!!!!!!! Getting all sell transaction on Coinbase Pro !!!!")
+        all_transactions = coinbase_pro.all_sell_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
+        for transaction in all_transactions:
+            print("Transaction: ", transaction)
+
+        # Get all the buy transaction on Coinbase Pro
+        print("!!!!!!! Getting all buy transaction on Coinbase Pro !!!!")
+        all_transactions = coinbase_pro.all_buy_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
+        for transaction in all_transactions:
+            print("Transaction: ", transaction)
 
     except Exception as err:
         fcrypt_log.error("[Exception] The following exception occured while fiscalcrypt was running:", str(err))

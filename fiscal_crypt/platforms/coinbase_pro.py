@@ -53,6 +53,7 @@ class CoinbaseProInterface(PlatformInterface):
         # Initialize what will be used next
         self.accounts = []
         self.transactions = []
+        self.fee = []
 
         # Initialize the price finder
         self.price_finder = price_finder
@@ -80,6 +81,46 @@ class CoinbaseProInterface(PlatformInterface):
 
         # Return the account id
         return items[3]
+
+    def _find_fee_for_order(self, order_id: str):
+        """
+        This function allows to return the fee value for a given order id
+
+        :param order_id: The order id we want the fees for
+        :type order_id: str
+        :returns: str -- The fees for this order
+        """
+        fee_value = ""
+
+        # Loop in the fee tab
+        for tmp_fee in self.fee:
+            tmp_order_id = tmp_fee["details"]["order_id"]
+            if tmp_order_id == order_id:
+                fee_value = tmp_fee["amount"]
+                break
+
+        return fee_value
+
+    def _find_account_for_currency(self, currency: str):
+        """
+        This function allows to return the account id for a given currency
+
+        :param currency: The currency we want the account id for
+        :type currency: str
+        :returns: str -- The account id for this currency
+        """
+        account_id = ""
+
+        # First, get the account ID of that corresponds to the currency
+        for account in self.accounts:
+            # Get the currency for the account
+            tmp_currency = account.get("currency", "[NOT KNOWN]")
+            # Check if it is the currency we are looking for
+            if tmp_currency == currency:
+                account_id = account.get("id", "")
+                break
+
+        return account_id
 
     def _load_all_accounts(self):
         """
@@ -142,8 +183,11 @@ class CoinbaseProInterface(PlatformInterface):
                 fcrypt_log.debug(f"              Balance: {balance} {account['currency']}")
                 fcrypt_log.debug(f"              Details: {details}")
 
-                # Add the account movement
-                self.transactions.append(tmp_movement)
+                # Add the account movement according to its type
+                if movement_type == "fee":
+                    self.fee.append(tmp_movement)
+                else:
+                    self.transactions.append(tmp_movement)
 
     def get_wallet_balance_at(self, currency: str, time: datetime.datetime) -> Decimal:
         """
@@ -255,18 +299,78 @@ class CoinbaseProInterface(PlatformInterface):
 
         return overall_value
 
-    def all_sell_transactions_generator(self, currency: str, start_time: datetime.datetime, end_time) -> Generator:
+    def all_sell_transactions_generator(self, currency: str, end_time: datetime.datetime) -> Generator:
         """
         This function returns a generator that can be used in a for loop to get
-        every "sell" transactions done between "start_time" and "end_time"
+        every "sell" transactions done before "end_time"
 
         :param currency: Fiat currency we want for the value (ISO 4217)
         :type currency: str
-        :param start_time: Begin of the tax period
-        :type start_time: datetime.datetime
         :param end_time: End of the tax period
         :type end_time: datetime.datetime
         :returns: Generator -- Generator to get each transaction object \
         """
-        # TODO
-        pass
+        account_id = self._find_account_for_currency(currency)
+
+        if account_id == "":
+            raise ValueError("Account not found with the given currency")
+
+        # Now that we have the right account id (for EUR for example), get all the sell operations
+        for transaction in self.transactions:
+            # Check that this is the right account and that is a match
+            if (transaction["account_id"] == account_id) and (transaction["type"] == "match"):
+                amount = transaction["amount"]
+                transaction_time = isoparse(transaction['created_at'])
+                # If the amount is positive, it is a sell!
+                if (transaction_time < end_time) and (not str.startswith(amount, "-")):
+                    # This is something we want, find the corresponding fee
+                    order_id = transaction["details"]["order_id"]
+                    fee_amount = self._find_fee_for_order(order_id)
+
+                    # Declare the dictionnary to return
+                    tmp_dict = {
+                        "date": transaction_time,
+                        "currency": currency,
+                        "amount": amount,
+                        "fee": fee_amount
+                    }
+
+                    yield tmp_dict
+
+    def all_buy_transactions_generator(self, currency: str, end_time: datetime.datetime) -> Generator:
+        """
+        This function returns a generator that can be used in a for loop to get
+        every "buy" transactions done before "end_time"
+
+        :param currency: Fiat currency we want for the value (ISO 4217)
+        :type currency: str
+        :param end_time: End of the tax period
+        :type end_time: datetime.datetime
+        :returns: Generator -- Generator to get each transaction object
+        """
+        account_id = self._find_account_for_currency(currency)
+
+        if account_id == "":
+            raise ValueError("Account not found with the given currency")
+
+        # Now that we have the right account id (for EUR for example), get all the sell operations
+        for transaction in self.transactions:
+            # Check that this is the right account and that is a match
+            if (transaction["account_id"] == account_id) and (transaction["type"] == "match"):
+                amount = transaction["amount"]
+                transaction_time = isoparse(transaction['created_at'])
+                # If the amount is negative, it is a buy!
+                if (transaction_time < end_time) and str.startswith(amount, "-"):
+                    # This is something we want, find the corresponding fee
+                    order_id = transaction["details"]["order_id"]
+                    fee_amount = self._find_fee_for_order(order_id)
+
+                    # Declare the dictionnary to return
+                    tmp_dict = {
+                        "date": transaction_time,
+                        "currency": currency,
+                        "amount": amount,
+                        "fee": fee_amount
+                    }
+
+                    yield tmp_dict

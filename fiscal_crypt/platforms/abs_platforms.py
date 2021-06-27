@@ -48,19 +48,43 @@ class PlatformInterface(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def all_sell_transactions_generator(self, currency: str, start_time: datetime.datetime, end_time) -> Generator:
+    def all_sell_transactions_generator(self, currency: str, end_time: datetime.datetime) -> Generator:
         """
         This function returns a generator that can be used in a for loop to get
-        every "sell" transactions done between "start_time" and "end_time"
+        every "sell" transactions done before "end_time"
 
         :param currency: Fiat currency we want for the value (ISO 4217)
         :type currency: str
-        :param start_time: Begin of the tax period
-        :type start_time: datetime.datetime
         :param end_time: End of the tax period
         :type end_time: datetime.datetime
         :returns: Generator -- Generator to get each transaction object \
             The transaction object being:
-            TODO
+            {
+                "date": datetime.datetime,
+                "currency": "EUR",
+                "amount": "95.34",
+                "fee": "0.499"
+            }
+        """
+        pass
+
+    @abc.abstractmethod
+    def all_buy_transactions_generator(self, currency: str, end_time: datetime.datetime) -> Generator:
+        """
+        This function returns a generator that can be used in a for loop to get
+        every "buy" transactions done before "end_time"
+
+        :param currency: Fiat currency we want for the value (ISO 4217)
+        :type currency: str
+        :param end_time: End of the tax period
+        :type end_time: datetime.datetime
+        :returns: Generator -- Generator to get each transaction object \
+            The transaction object being:
+            {
+                "date": datetime.datetime,
+                "currency": "EUR",
+                "amount": "-95.34",
+                "fee": "0.499"
+            }
         """
         pass
