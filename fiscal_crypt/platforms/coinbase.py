@@ -50,10 +50,6 @@ class CoinbaseInterface(PlatformInterface):
         # Create the Coinbase authenticated client that we will use
         self.api_client = Client(api_key, api_secret)
 
-        # Initialize what will be used next
-        self.accounts = []
-        self.transactions = []
-
         # Initialize the price finder
         self.price_finder = price_finder
 
@@ -286,7 +282,7 @@ class CoinbaseInterface(PlatformInterface):
 
         return overall_value
 
-    def all_sell_transactions_generator(self, currency: str, start_time: datetime.datetime, end_time) -> Generator:
+    def all_sell_transactions_generator(self, currency: str, end_time: datetime.datetime) -> Generator:
         """
         This function returns a generator that can be used in a for loop to get
         every "sell" transactions done between "start_time" and "end_time"
@@ -299,5 +295,91 @@ class CoinbaseInterface(PlatformInterface):
         :type end_time: datetime.datetime
         :returns: Generator -- Generator to get each transaction object \
         """
-        # TODO
-        pass
+        # Get the correct ID for this currency
+        account_id = self._find_account_for_currency(currency)
+
+        if account_id == "":
+            raise ValueError("Account not found with the given currency")
+
+        # Now that we have the right account
+        for transaction in self.transactions:
+            # Extract the account ID from the resource path
+            account = self._extract_account_id(transaction['resource_path'])
+
+            # Check that this is the right account and that is a match
+            if (account == account_id) and (transaction["type"] == "sell"):
+                # Get the amount of the transaction
+                amount = transaction["native_amount"]["amount"]
+
+                # Check the time when this sell appeared
+                transaction_time = isoparse(transaction['created_at'])
+
+                if (transaction_time < end_time):
+                    # This is something we want, find the corresponding fee
+
+                    # Request the full sell transaction object
+                    current_sell = self.api_client.get_sell(account_id, transaction["id"])
+
+                    # Get the fee amount from the full sell object
+                    fee_amount = current_sell["fee"]["amount"]
+
+                    # Declare the dictionnary to return
+                    tmp_dict = {
+                        "date": transaction_time,
+                        "currency": currency,
+                        "amount": amount,
+                        "fee": fee_amount
+                    }
+
+                    yield tmp_dict
+                    # PROBLEM: IN COINBASE ALL THE TRANSACTIONS ARE NOT IN "EUR" ACCOUNTS !
+
+    def all_buy_transactions_generator(self, currency: str, end_time: datetime.datetime) -> Generator:
+        """
+        This function returns a generator that can be used in a for loop to get
+        every "buy" transactions done before "end_time"
+
+        :param currency: Fiat currency we want for the value (ISO 4217)
+        :type currency: str
+        :param end_time: End of the tax period
+        :type end_time: datetime.datetime
+        :returns: Generator -- Generator to get each transaction object
+        """
+        # Get the correct ID for this currency
+        account_id = self._find_account_for_currency(currency)
+
+        if account_id == "":
+            raise ValueError("Account not found with the given currency")
+
+        # Now that we have the right account
+        for transaction in self.transactions:
+            # Extract the account ID from the resource path
+            account = self._extract_account_id(transaction['resource_path'])
+
+            # Check that this is the right account and that is a match
+            if (account == account_id) and (transaction["type"] == "buy"):
+                # Get the amount of the transaction
+                amount = transaction["native_amount"]["amount"]
+
+                # Check the time when this sell appeared
+                transaction_time = isoparse(transaction['created_at'])
+
+                if (transaction_time < end_time):
+                    # This is something we want, find the corresponding fee
+
+                    # Request the full sell transaction object
+                    current_sell = self.api_client.get_sell(account_id, transaction["id"])
+
+                    # Get the fee amount from the full sell object
+                    fee_amount = current_sell["fee"]["amount"]
+
+                    # Declare the dictionnary to return
+                    tmp_dict = {
+                        "date": transaction_time,
+                        "currency": currency,
+                        "amount": amount,
+                        "fee": fee_amount
+                    }
+
+                    yield tmp_dict
+                    # PROBLEM: IN COINBASE ALL THE TRANSACTIONS ARE NOT IN "EUR" ACCOUNTS !

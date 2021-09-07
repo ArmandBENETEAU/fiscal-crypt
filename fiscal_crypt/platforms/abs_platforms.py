@@ -33,6 +33,31 @@ class PlatformInterface(abc.ABC):
     at a given time. For each platform we want to use, a sub-class of "PlatformInterface"
     """
 
+    def __init__(self) -> None:
+        self.accounts = []
+        self.transactions = []
+
+    def _find_account_for_currency(self, currency: str) -> str:
+        """
+        This function allows to return the account id for a given currency
+
+        :param currency: The currency we want the account id for
+        :type currency: str
+        :returns: str -- The account id for this currency
+        """
+        account_id = ""
+
+        # First, get the account ID of that corresponds to the currency
+        for account in self.accounts:
+            # Get the currency for the account
+            tmp_currency = account.get("currency", "[NOT KNOWN]")
+            # Check if it is the currency we are looking for
+            if tmp_currency == currency:
+                account_id = account.get("id", "")
+                break
+
+        return account_id
+
     @abc.abstractmethod
     def get_all_wallets_value(self, currency: str, time: datetime.datetime) -> Decimal:
         """

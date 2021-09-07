@@ -51,8 +51,6 @@ class CoinbaseProInterface(PlatformInterface):
         self.api_client = cbpro.AuthenticatedClient(api_key, api_secret, api_passphrase)
 
         # Initialize what will be used next
-        self.accounts = []
-        self.transactions = []
         self.fee = []
 
         # Initialize the price finder
@@ -100,27 +98,6 @@ class CoinbaseProInterface(PlatformInterface):
                 break
 
         return fee_value
-
-    def _find_account_for_currency(self, currency: str):
-        """
-        This function allows to return the account id for a given currency
-
-        :param currency: The currency we want the account id for
-        :type currency: str
-        :returns: str -- The account id for this currency
-        """
-        account_id = ""
-
-        # First, get the account ID of that corresponds to the currency
-        for account in self.accounts:
-            # Get the currency for the account
-            tmp_currency = account.get("currency", "[NOT KNOWN]")
-            # Check if it is the currency we are looking for
-            if tmp_currency == currency:
-                account_id = account.get("id", "")
-                break
-
-        return account_id
 
     def _load_all_accounts(self):
         """
