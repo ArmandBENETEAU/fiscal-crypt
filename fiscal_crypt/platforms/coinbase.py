@@ -162,13 +162,14 @@ class CoinbaseInterface(PlatformInterface):
             # Print the transactions
             for transaction in transactions_list:
                 # print(transaction)
+                transaction_type = transaction['type']
                 amount = transaction['amount']['amount']
                 currency = transaction['amount']['currency']
                 date = transaction['updated_at']
                 if not str.startswith(amount, "-"):
                     amount = "+" + amount
                 account = self._extract_account_id(transaction['resource_path'])
-                fcrypt_log.debug(f"[TRANSACTION] {date}: {amount} {currency} ==> {account}")
+                fcrypt_log.debug(f"[TRANSACTION][{transaction_type}] {date}: {amount} {currency} ==> {account}")
 
             self.transactions.extend(transactions_list)
 
@@ -295,10 +296,10 @@ class CoinbaseInterface(PlatformInterface):
         :type end_time: datetime.datetime
         :returns: Generator -- Generator to get each transaction object \
         """
-        # Get the correct ID for this currency
-        account_id = self._find_account_for_currency(currency)
+        # Get the correct ID for this currency in order to ignore it
+        account_to_ignore_id = self._find_account_for_currency(currency)
 
-        if account_id == "":
+        if account_to_ignore_id == "":
             raise ValueError("Account not found with the given currency")
 
         # Now that we have the right account
@@ -307,9 +308,15 @@ class CoinbaseInterface(PlatformInterface):
             account = self._extract_account_id(transaction['resource_path'])
 
             # Check that this is the right account and that is a match
-            if (account == account_id) and (transaction["type"] == "sell"):
+            if (account != account_to_ignore_id) and (transaction["type"] == "sell"):
                 # Get the amount of the transaction
                 amount = transaction["native_amount"]["amount"]
+                local_currency = transaction["native_amount"]["currency"]
+
+                if local_currency != currency:
+                    error_msg = f"The local currency found \"{local_currency}\" does not match \
+                                  the specified currency \"{currency}\"!"
+                    raise ValueError(error_msg)
 
                 # Check the time when this sell appeared
                 transaction_time = isoparse(transaction['created_at'])
@@ -318,21 +325,20 @@ class CoinbaseInterface(PlatformInterface):
                     # This is something we want, find the corresponding fee
 
                     # Request the full sell transaction object
-                    current_sell = self.api_client.get_sell(account_id, transaction["id"])
+                    current_sell = self.api_client.get_sell(account, transaction["sell"]["id"])
 
                     # Get the fee amount from the full sell object
-                    fee_amount = current_sell["fee"]["amount"]
+                    fee_amount = current_sell["fees"][0]["amount"]["amount"]
 
                     # Declare the dictionnary to return
                     tmp_dict = {
                         "date": transaction_time,
-                        "currency": currency,
+                        "currency": local_currency,
                         "amount": amount,
                         "fee": fee_amount
                     }
 
                     yield tmp_dict
-                    # PROBLEM: IN COINBASE ALL THE TRANSACTIONS ARE NOT IN "EUR" ACCOUNTS !
 
     def all_buy_transactions_generator(self, currency: str, end_time: datetime.datetime) -> Generator:
         """
@@ -345,10 +351,10 @@ class CoinbaseInterface(PlatformInterface):
         :type end_time: datetime.datetime
         :returns: Generator -- Generator to get each transaction object
         """
-        # Get the correct ID for this currency
-        account_id = self._find_account_for_currency(currency)
+        # Get the correct ID for this currency in order to ignore it
+        account_to_ignore_id = self._find_account_for_currency(currency)
 
-        if account_id == "":
+        if account_to_ignore_id == "":
             raise ValueError("Account not found with the given currency")
 
         # Now that we have the right account
@@ -357,9 +363,15 @@ class CoinbaseInterface(PlatformInterface):
             account = self._extract_account_id(transaction['resource_path'])
 
             # Check that this is the right account and that is a match
-            if (account == account_id) and (transaction["type"] == "buy"):
+            if (account != account_to_ignore_id) and (transaction["type"] == "buy"):
                 # Get the amount of the transaction
                 amount = transaction["native_amount"]["amount"]
+                local_currency = transaction["native_amount"]["currency"]
+
+                if local_currency != currency:
+                    error_msg = f"The local currency found \"{local_currency}\" does not match \
+                                 the specified currency \"{currency}\"!"
+                    raise ValueError(error_msg)
 
                 # Check the time when this sell appeared
                 transaction_time = isoparse(transaction['created_at'])
@@ -368,18 +380,17 @@ class CoinbaseInterface(PlatformInterface):
                     # This is something we want, find the corresponding fee
 
                     # Request the full sell transaction object
-                    current_sell = self.api_client.get_sell(account_id, transaction["id"])
+                    current_buy = self.api_client.get_buy(account, transaction["buy"]["id"])
 
                     # Get the fee amount from the full sell object
-                    fee_amount = current_sell["fee"]["amount"]
+                    fee_amount = current_buy["fees"][0]["amount"]["amount"]
 
                     # Declare the dictionnary to return
                     tmp_dict = {
                         "date": transaction_time,
-                        "currency": currency,
+                        "currency": local_currency,
                         "amount": amount,
                         "fee": fee_amount
                     }
 
                     yield tmp_dict
-                    # PROBLEM: IN COINBASE ALL THE TRANSACTIONS ARE NOT IN "EUR" ACCOUNTS !

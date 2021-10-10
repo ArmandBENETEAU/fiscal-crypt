@@ -65,15 +65,15 @@ if __name__ == "__main__":
         crypto_finder = CryptowatchFinder(cryptowatch_keys["api_key"], "coinbase-pro")
 
         # Create coinbase interface
-        coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"], crypto_finder)
+        # coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"], crypto_finder)
 
         # Create coinbase pro interface
-        # print("!!!!!!! Initialising COINBASE PRO interface")
-        # coinbase_pro = CoinbaseProInterface(
-        #     coinbase_pro_keys["api_key"],
-        #     coinbase_pro_keys["api_secret"],
-        #     coinbase_pro_keys["api_passphrase"],
-        #     crypto_finder)
+        print("!!!!!!! Initialising COINBASE PRO interface")
+        coinbase_pro = CoinbaseProInterface(
+            coinbase_pro_keys["api_key"],
+            coinbase_pro_keys["api_secret"],
+            coinbase_pro_keys["api_passphrase"],
+            crypto_finder)
 
         # value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
         # normal_value = value.normalize()
@@ -91,17 +91,29 @@ if __name__ == "__main__":
 
         # print(f"VALUE {str(display_value)} €")
 
-        # Get all the sell transaction on Coinbase
-        print("!!!!!!! Getting all sell transaction on Coinbase !!!!")
-        all_transactions = coinbase.all_sell_transactions_generator("XLM", isoparse("2021-07-01T00:00:00Z"))
+        # Get all the sell transaction on Coinbase Pro
+        print("!!!!!!! Getting all sell transaction on Coinbase Pro !!!!")
+        all_transactions = coinbase_pro.all_sell_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
         for transaction in all_transactions:
             print("Transaction: ", transaction)
 
-        # Get all the buy transaction on Coinbase
-        print("!!!!!!! Getting all buy transaction on Coinbase !!!!")
-        all_transactions = coinbase.all_buy_transactions_generator("XLM", isoparse("2021-07-01T00:00:00Z"))
+        # Get all the buy transaction on Coinbase Pro
+        print("!!!!!!! Getting all buy transaction on Coinbase Pro !!!!")
+        all_transactions = coinbase_pro.all_buy_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
         for transaction in all_transactions:
             print("Transaction: ", transaction)
+
+        # # Get all the sell transaction on Coinbase
+        # print("!!!!!!! Getting all sell transaction on Coinbase !!!!")
+        # all_transactions = coinbase.all_sell_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
+        # for transaction in all_transactions:
+        #     print("Transaction: ", transaction)
+
+        # # Get all the buy transaction on Coinbase
+        # print("!!!!!!! Getting all buy transaction on Coinbase !!!!")
+        # all_transactions = coinbase.all_buy_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
+        # for transaction in all_transactions:
+        #     print("Transaction: ", transaction)
 
     except Exception as err:
         fcrypt_log.error("[Exception] The following exception occured while fiscalcrypt was running:", str(err))
