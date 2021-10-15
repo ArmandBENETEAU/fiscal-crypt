@@ -20,22 +20,101 @@ Main script to run fiscalcrypt tool
     General Public License requirements will be met \
     https://www.gnu.org/licenses/gpl-3.0.html.
 """
-import datetime
+import json
+import sys
+from datetime import datetime
+from dateutil.parser import isoparse
+from decimal import *
 
-from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
+from fiscal_crypt.price_finder.cryptowatch_finder import CryptowatchFinder
+from fiscal_crypt.platforms.coinbase import CoinbaseInterface
+from fiscal_crypt.platforms.coinbase_pro import CoinbaseProInterface
+from fiscal_crypt.fcrypt_logging import fcrypt_log
+
+COINBASE_API_KEYS_FILE = "coinbase_keys.json"
+COINBASE_PRO_API_KEYS_FILE = "coinbase_pro_keys.json"
+CRYPTOWATCH_API_KEYS_FILE = "cryptowatch_keys.json"
 
 if __name__ == "__main__":
 
-    finder = CoinbaseProFinder()
+    try:
+        # Get the file containing the keys
+        with open(COINBASE_API_KEYS_FILE) as keys_file:
+            coinbase_keys = json.load(keys_file)
 
-    # One year ago
-    time_now_last_year = datetime.datetime.now().date().year - 1
-    price = finder.get_price_of("XLM-EUR", time_now_last_year)
+        if ("api_key" not in coinbase_keys) or ("api_secret" not in coinbase_keys):
+            fcrypt_log.error("[CONFIG] Missing keys in configuration file")
+            sys.exit(1)
 
-    print(f"XLM price one year ago: {price} €")
+        with open(CRYPTOWATCH_API_KEYS_FILE) as keys_file:
+            cryptowatch_keys = json.load(keys_file)
 
-    # Begin of last year
-    begin_last_year = datetime.datetime(year=time_now_last_year, month=1, day=1, hour=0, minute=30)
-    price_january = finder.get_price_of("XLM-EUR", begin_last_year)
+        if ("api_key" not in cryptowatch_keys):
+            fcrypt_log.error("[CONFIG] Missing keys in configuration file")
+            sys.exit(1)
 
-    print(f"XLM price january: {price_january} €")
+        with open(COINBASE_PRO_API_KEYS_FILE) as keys_file:
+            coinbase_pro_keys = json.load(keys_file)
+
+        if (("api_key" not in coinbase_pro_keys) or ("api_secret" not in coinbase_pro_keys) or
+                ("api_passphrase" not in coinbase_pro_keys)):
+            fcrypt_log.error("[CONFIG] Missing keys in configuration file")
+            sys.exit(1)
+
+        # Create the cryptowatch interface
+        crypto_finder = CryptowatchFinder(cryptowatch_keys["api_key"], "coinbase-pro")
+
+        # Create coinbase interface
+        # coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"], crypto_finder)
+
+        # Create coinbase pro interface
+        print("!!!!!!! Initialising COINBASE PRO interface")
+        coinbase_pro = CoinbaseProInterface(
+            coinbase_pro_keys["api_key"],
+            coinbase_pro_keys["api_secret"],
+            coinbase_pro_keys["api_passphrase"],
+            crypto_finder)
+
+        # value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
+        # normal_value = value.normalize()
+
+        # print("!!!!!!! Calculating the wallet value for XLM")
+        # value = coinbase_pro.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
+        # normal_value = value.normalize()
+
+        # value = coinbase.get_all_wallets_value("EUR", isoparse("2020-02-14T00:30:00Z"))
+        # normal_value = value.normalize()
+
+        # Round to two places
+        # TWOPLACES = Decimal(10) ** -2
+        # display_value = normal_value.quantize(TWOPLACES)
+
+        # print(f"VALUE {str(display_value)} €")
+
+        # Get all the sell transaction on Coinbase Pro
+        print("!!!!!!! Getting all sell transaction on Coinbase Pro !!!!")
+        all_transactions = coinbase_pro.all_sell_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
+        for transaction in all_transactions:
+            print("Transaction: ", transaction)
+
+        # Get all the buy transaction on Coinbase Pro
+        print("!!!!!!! Getting all buy transaction on Coinbase Pro !!!!")
+        all_transactions = coinbase_pro.all_buy_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
+        for transaction in all_transactions:
+            print("Transaction: ", transaction)
+
+        # # Get all the sell transaction on Coinbase
+        # print("!!!!!!! Getting all sell transaction on Coinbase !!!!")
+        # all_transactions = coinbase.all_sell_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
+        # for transaction in all_transactions:
+        #     print("Transaction: ", transaction)
+
+        # # Get all the buy transaction on Coinbase
+        # print("!!!!!!! Getting all buy transaction on Coinbase !!!!")
+        # all_transactions = coinbase.all_buy_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
+        # for transaction in all_transactions:
+        #     print("Transaction: ", transaction)
+
+    except Exception as err:
+        fcrypt_log.error("[Exception] The following exception occured while fiscalcrypt was running:", str(err))
+        sys.exit(1)

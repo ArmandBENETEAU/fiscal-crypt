@@ -27,12 +27,11 @@ class PriceFinder(abc.ABC):
     """
     Abstract class giving a model for the implementation of price finders.
     Several platforms can be used to retrieve the price of a crypto-currency
-    at a given time. For each platform we want to use, a sub-class of "PriceFinder"
-    needs to be implemented.
+    at a given time. For each platform we want to use a sub-class of "PriceFinder"
     """
 
     @abc.abstractmethod
-    def get_price_of(self, currency: str, time: datetime.datetime):
+    def get_rate_of(self, currency: str, time: datetime.datetime) -> float:
         """
         This function allows to get the price of a crypto-currency at a given
         datetime.
@@ -41,5 +40,6 @@ class PriceFinder(abc.ABC):
         :type currency: str
         :param time: Time where the price is wanted
         :type time: datetime.datetime
+        :returns: Decimal -- The average rate of the given currency
         """
         pass

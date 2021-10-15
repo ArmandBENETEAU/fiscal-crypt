@@ -21,7 +21,8 @@ File containing the CoinbaseProFinder subclass
 
 import cbpro
 import datetime
-from fiscal_crypt.price_finder.price_finder import PriceFinder
+from decimal import *
+from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 
 
 class CoinbaseProFinder(PriceFinder):
@@ -39,7 +40,7 @@ class CoinbaseProFinder(PriceFinder):
         self.api_client = cbpro.PublicClient()
 
     @staticmethod
-    def _calculate_average(rates: list) -> float:
+    def _calculate_average(rates: list) -> Decimal:
         """
         Calculate the average of the price from a list of "bucket".
         For more information, see:
@@ -48,16 +49,17 @@ class CoinbaseProFinder(PriceFinder):
 
         :param rates: List of "buckets" containing the prices candles
         :type rates: list
+        :returns: Decimal -- The average over all the rates
         """
         # Go through the different rates and get what we want
-        full_volume = 0.0
-        full_prices = 0.0
+        full_volume = Decimal(0.0)
+        full_prices = Decimal(0.0)
         for rate in rates:
             # Calculate the middle price
-            middle_price = (float(rate[1]) + float(rate[2])) / 2
+            middle_price = (Decimal(rate[1]) + Decimal(rate[2])) / 2
 
             # Get the volume
-            volume = float(rate[5])
+            volume = Decimal(rate[5])
 
             # Add the middle_price multiplied by the volume to full_prices
             full_prices = full_prices + (middle_price * volume)
@@ -65,31 +67,41 @@ class CoinbaseProFinder(PriceFinder):
             # Add the volume to the full_volume
             full_volume = full_volume + volume
 
-        # Calculate the average
-        average = full_prices / full_volume
+        if full_volume != Decimal(0.0):
+            # Calculate the average
+            average = full_prices / full_volume
+        else:
+            average = Decimal(0.0)
 
         return average
 
-    def get_price_of(self, currency: str, time: datetime.datetime):
+    def get_rate_of(self, currency: str, time: datetime.datetime) -> Decimal:
         """
-        This function allows to get the price of a crypto-currency at a given
-        datetime.
+        This function allows to get the rate of a crypto-currency with
+        a fiat currency at a given datetime.
 
-        :param currency: Currency we want the price of (ISO 4217)
+        :param currency: (Currency-fiat) we want the price of, example: BTC-EUR
         :type currency: str
         :param time: Time where the price is wanted
         :type time: datetime.datetime
+        :returns: Decimal -- The average rate of the given currency
         """
         # From the time given, get the "start" time, we will calculate average
         # on only one hour
         startTime = time.replace(microsecond=0, second=0, minute=0)
         endTime = startTime + datetime.timedelta(hours=1.0)
 
+        iso_start = startTime.isoformat()
+        iso_end = endTime.isoformat()
+
         # Get the historic price for this time
         historic_rates = self.api_client.get_product_historic_rates(
-            currency, start=startTime.isoformat(), end=endTime.isoformat(), granularity=60)
+            currency, start=iso_start, end=iso_end, granularity=60)
 
-        # Calculate the average for the hour that interest us
-        average = self._calculate_average(historic_rates)
+        if isinstance(historic_rates, list):
+            # Calculate the average for the hour that interest us
+            average = self._calculate_average(historic_rates)
+        else:
+            average = Decimal(0.0)
 
         return average
