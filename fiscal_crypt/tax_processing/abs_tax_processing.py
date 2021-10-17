@@ -21,9 +21,11 @@ File containing the TaxProcessing abstract class
 
 import abc
 import datetime
+from decimal import *
 from typing import List
 
 from fiscal_crypt.platforms.abs_platforms import PlatformInterface
+from fiscal_crypt.fcrypt_logging import fcrypt_log
 
 
 class TaxProcessing(abc.ABC):
@@ -33,9 +35,66 @@ class TaxProcessing(abc.ABC):
     For each country we want to use a sub-class of "TaxProcessing"
     """
 
-    def __init__(self, platforms_ls: List[PlatformInterface]) -> None:
+    def __init__(self, currency: str, platforms_ls: List[PlatformInterface]) -> None:
         # Save the list of all platforms where the user own crypto-currencies
         self.platforms_list = platforms_ls
+
+        # Save the currency wanted to calculate
+        self.currency = currency
+        self.buy_transactions = []
+        self.sell_transactions = []
+
+    def _load_and_sort_all_transactions(self, end_time: datetime.datetime) -> None:
+        """
+        This function allows to load in memory all the transactions done by the user until end_time
+
+        :param end_time: Datetime corresponding to the end of the tax period
+        :type end_time: datetime.datetime
+        """
+        # Initialize temporary array
+        tmp_buy_transactions = []
+        tmp_sell_transactions = []
+
+        # Logs info
+        fcrypt_log.info("[TAXES PROCESSING] Loading all buy and sell transactions...")
+
+        # Get the buy and sell transactions
+        for crypto_platform in self.platforms_list:
+
+            # First the buy transactions
+            for buy in crypto_platform.all_buy_transactions_generator(self.currency, end_time):
+                tmp_buy_transactions.append(buy)
+
+            # Then the sell transactions
+            for sell in crypto_platform.all_sell_transactions_generator(self.currency, end_time):
+                tmp_sell_transactions.append(sell)
+
+        # Logs info
+        fcrypt_log.info(f"[TAXES PROCESSING] Number of platforms scanned: {len(self.platforms_list)}")
+        fcrypt_log.info(f"[TAXES PROCESSING] Number of \"BUY\" transactions found: {len(tmp_buy_transactions)}")
+        fcrypt_log.info(f"[TAXES PROCESSING] Number of \"SELL\" transactions found: {len(tmp_sell_transactions)}")
+
+        # Logs info
+        fcrypt_log.info("[TAXES PROCESSING] Load done")
+
+    def _get_overall_wallets_value(self, time: datetime.datetime) -> Decimal:
+        """
+        This function allows to get the overall value of all the wallets hold by the crypto-owner.
+        Basically, it does a sum of all the crypto-owner wallets values.
+
+        :param time: Datetime wanted for the values evaluation
+        :type time: datetime.datetime
+        :returns: Decimal -- Decimal value of the wallets
+        """
+        # Initialize the result
+        result = Decimal(0)
+
+        # Go over the different platform
+        for crypto_platform in self.platforms_list:
+            tmp_result = crypto_platform.get_all_wallets_value(self.currency, time)
+            result += tmp_result
+
+        return result
 
     @abc.abstractmethod
     def get_tax_declaration_for(self, fiat_currency: str, start_time: datetime.datetime,
