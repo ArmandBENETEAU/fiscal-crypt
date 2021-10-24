@@ -74,16 +74,16 @@ class FrenchTaxes(TaxProcessing):
             tmp_transactions.append(tmp_object)
 
         # Add all the sell transactions in that list, while processing them a bit
-        for buy in self.buy_transactions:
+        for sell in self.sell_transactions:
             # Create the absolute value of the amount
-            absolute_value = buy["amount"].replace("-", "")
+            absolute_value = sell["amount"].replace("-", "")
             # Create the absolute value of the fees
-            absolute_value_fee = buy["fee"].replace("-", "")
+            absolute_value_fee = sell["fee"].replace("-", "")
             # Create an object to add to the result
             tmp_object = {
                 "type": "sell",
-                "date": buy["date"],
-                "currency": buy["currency"],
+                "date": sell["date"],
+                "currency": sell["currency"],
                 "amount": Decimal(absolute_value),
                 "fee": Decimal(absolute_value_fee)
             }
@@ -123,5 +123,14 @@ class FrenchTaxes(TaxProcessing):
         # Logs info
         fcrypt_log.info("[TAXES PROCESSING] Pre-processing done!")
 
-        # TODO
+        # Now, calculate the capital gain and all the needed fields for tax declaration
+
+        # Logs info
+        fcrypt_log.info("[TAXES PROCESSING] Processing the transactions to get capital gains...")
+
+        # Loop over the transactions
+        for transaction in preprocessed_transactions:
+            pass
+            # TODO
+
         pass
