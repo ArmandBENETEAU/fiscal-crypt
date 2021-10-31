@@ -80,7 +80,7 @@ class CoinbaseProInterface(PlatformInterface):
         # Return the account id
         return items[3]
 
-    def _find_fee_for_order(self, order_id: str):
+    def _find_fee_for_order(self, order_id: str, trade_id: str):
         """
         This function allows to return the fee value for a given order id
 
@@ -93,7 +93,8 @@ class CoinbaseProInterface(PlatformInterface):
         # Loop in the fee tab
         for tmp_fee in self.fee:
             tmp_order_id = tmp_fee["details"]["order_id"]
-            if tmp_order_id == order_id:
+            tmp_trade_id = tmp_fee["details"]["trade_id"]
+            if (tmp_order_id == order_id) and (tmp_trade_id == trade_id):
                 fee_value = tmp_fee["amount"]
                 break
 
@@ -302,7 +303,8 @@ class CoinbaseProInterface(PlatformInterface):
                 if (transaction_time < end_time) and (not str.startswith(amount, "-")):
                     # This is something we want, find the corresponding fee
                     order_id = transaction["details"]["order_id"]
-                    fee_amount = self._find_fee_for_order(order_id)
+                    trade_id = transaction["details"]["trade_id"]
+                    fee_amount = self._find_fee_for_order(order_id, trade_id)
 
                     # Declare the dictionnary to return
                     tmp_dict = {
@@ -340,7 +342,8 @@ class CoinbaseProInterface(PlatformInterface):
                 if (transaction_time < end_time) and str.startswith(amount, "-"):
                     # This is something we want, find the corresponding fee
                     order_id = transaction["details"]["order_id"]
-                    fee_amount = self._find_fee_for_order(order_id)
+                    trade_id = transaction["details"]["trade_id"]
+                    fee_amount = self._find_fee_for_order(order_id, trade_id)
 
                     # Declare the dictionnary to return
                     tmp_dict = {
