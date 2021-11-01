@@ -141,7 +141,7 @@ class FrenchTaxes(TaxProcessing):
 
                 # Show details to user
                 fcrypt_log.info(
-                    f"[TAXES PROCESSING] Buy operation: +{bought_amount} {fiat_currency} \
+                    f"[TAXES PROCESSING] BUY OPERATION: +{bought_amount} {fiat_currency} \
 => {self.total_acquisition_price} {fiat_currency}")
 
             elif current_type == "sell":
@@ -158,12 +158,17 @@ class FrenchTaxes(TaxProcessing):
                 # Calculating the "plus-value" (capital gain)
                 capital_gain = cession_price - (cession_price * acquisition_price / global_value)
 
+                # Creation of the date string
+                date_str = transaction["date"].strftime("%d-%b-%Y (%H:%M:%S.%f)")
+
                 # Displaying the operation
-                fcrypt_log.info(f"[TAXES PROCESSING] Sell operation: capital gain: {capital_gain}")
-                fcrypt_log.info(f"    Cession price: {cession_price} {fiat_currency}")
-                fcrypt_log.info(f"    Fee: {cession_fee} {fiat_currency}")
-                fcrypt_log.info(f"    Total acquisition price: {acquisition_price} {fiat_currency}")
-                fcrypt_log.info(f"    Global value: {global_value} {fiat_currency}")
+                fcrypt_log.info(f"[TAXES PROCESSING] SELL OPERATION")
+                fcrypt_log.info(f"    Date:              {date_str}")
+                fcrypt_log.info(f"    Capital gain:      {capital_gain} {fiat_currency}")
+                fcrypt_log.info(f"    Cession price:     {cession_price} {fiat_currency}")
+                fcrypt_log.info(f"    Fee:               {cession_fee} {fiat_currency}")
+                fcrypt_log.info(f"    Acquisition price: {acquisition_price} {fiat_currency}")
+                fcrypt_log.info(f"    Global value:      {global_value} {fiat_currency}")
 
                 # Calculate the new total acquisition price
                 self.total_acquisition_price = self.total_acquisition_price - \

@@ -251,7 +251,7 @@ class CoinbaseInterface(PlatformInterface):
                 wallet_value = rate_value * balance
 
                 # Print info
-                fcrypt_log.info(
+                fcrypt_log.debug(
                     f"[WALLET] Value of {crypto_currency} wallet at {time_str}: {wallet_value} {fiat_currency}")
 
         else:
