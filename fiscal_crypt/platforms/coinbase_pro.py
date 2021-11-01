@@ -57,9 +57,9 @@ class CoinbaseProInterface(PlatformInterface):
         self.price_finder = price_finder
 
         # Load all accounts and transactions
-        fcrypt_log.info("[INITIALIZATION] Loading all accounts...")
+        fcrypt_log.info("[COINBASE PRO][INITIALIZATION] Loading all accounts...")
         self._load_all_accounts()
-        fcrypt_log.info("[INITIALIZATION] Loading all transactions...")
+        fcrypt_log.info("[COINBASE PRO][INITIALIZATION] Loading all transactions...")
         self._load_all_transactions()
 
     @staticmethod
@@ -225,8 +225,8 @@ class CoinbaseProInterface(PlatformInterface):
         time_str = str(time)
         normal_balance = str(balance.normalize())
 
-        # Print info
-        fcrypt_log.info(f"[WALLET] Balance at {time_str}: {normal_balance} {crypto_currency}")
+        # Print debug
+        fcrypt_log.debug(f"[WALLET] Balance at {time_str}: {normal_balance} {crypto_currency}")
 
         if balance != 0:
 
@@ -236,9 +236,9 @@ class CoinbaseProInterface(PlatformInterface):
 
             if rate_value == Decimal(0):
                 # Print error
-                fcrypt_log.error(
-                    f"[WALLET] NO RATE FOUND FOR NOT NULL BALANCE !!! Currency: {crypto_currency}",
-                    f"Fiat: {fiat_currency}")
+                fcrypt_log.warning(
+                    f"[WALLET] NO RATE FOUND FOR NOT NULL BALANCE !!! Currency: {crypto_currency} \
+ - Fiat: {fiat_currency}")
                 # Return 0
                 wallet_value = Decimal(0)
             else:
@@ -291,7 +291,7 @@ class CoinbaseProInterface(PlatformInterface):
         account_id = self._find_account_for_currency(currency)
 
         if account_id == "":
-            raise ValueError("Account not found with the given currency")
+            raise ValueError(f"Account not found with the given currency: {currency}")
 
         # Now that we have the right account id (for EUR for example), get all the sell operations
         for transaction in self.transactions:

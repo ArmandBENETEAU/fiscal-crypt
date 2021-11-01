@@ -24,5 +24,5 @@ import logging.handlers
 # --------------------------------------------
 # Logging configuration ----------------------
 # --------------------------------------------
-logging.basicConfig(format='%(asctime)s => [%(levelname)s] %(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s => [%(levelname)s] %(message)s', level=logging.INFO)
 fcrypt_log = logging.getLogger('fiscal_crypt')

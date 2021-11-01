@@ -39,12 +39,12 @@ class FrenchTaxes(TaxProcessing):
     a crypto-owner has to do when living in France.
     """
 
-    def __init__(self, platforms_ls: List[PlatformInterface]) -> None:
+    def __init__(self, currency: str, platforms_ls: List[PlatformInterface]) -> None:
         # Call the upper class initialization
-        super().__init__(platforms_ls)
+        super().__init__(currency, platforms_ls)
 
         # Initialize the different values we will need later
-        self.total_paid_price = Decimal(0)
+        self.total_acquisition_price = Decimal(0)
 
     def _merge_and_pre_process_transactions(self) -> List[dict]:
         """
@@ -130,7 +130,44 @@ class FrenchTaxes(TaxProcessing):
 
         # Loop over the transactions
         for transaction in preprocessed_transactions:
-            pass
-            # TODO
+            current_type = transaction["type"]
+            if current_type == "buy":
 
-        pass
+                # Get the amount bought
+                bought_amount = transaction["amount"]
+
+                # This is a buy, simply increment the acqusition price
+                self.total_acquisition_price += bought_amount
+
+                # Show details to user
+                fcrypt_log.info(
+                    f"[TAXES PROCESSING] Buy operation: +{bought_amount} {fiat_currency} \
+=> {self.total_acquisition_price} {fiat_currency}")
+
+            elif current_type == "sell":
+
+                # Get the cession price
+                cession_price = transaction["amount"]
+                # Get the fees
+                cession_fee = transaction["fee"]
+                # Get the current acquisition price
+                acquisition_price = self.total_acquisition_price
+                # Get the global value of the wallets
+                global_value = self._get_overall_wallets_value(transaction["date"])
+
+                # Calculating the "plus-value" (capital gain)
+                capital_gain = cession_price - (cession_price * acquisition_price / global_value)
+
+                # Displaying the operation
+                fcrypt_log.info(f"[TAXES PROCESSING] Sell operation: capital gain: {capital_gain}")
+                fcrypt_log.info(f"    Cession price: {cession_price} {fiat_currency}")
+                fcrypt_log.info(f"    Fee: {cession_fee} {fiat_currency}")
+                fcrypt_log.info(f"    Total acquisition price: {acquisition_price} {fiat_currency}")
+                fcrypt_log.info(f"    Global value: {global_value} {fiat_currency}")
+
+                # Calculate the new total acquisition price
+                self.total_acquisition_price = self.total_acquisition_price - \
+                    (cession_price * self.total_acquisition_price / global_value)
+
+            else:
+                fcrypt_log.error(f"[TAXES PROCESSING] Current type not supported: {current_type}")

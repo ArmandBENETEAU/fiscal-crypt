@@ -51,9 +51,6 @@ class TaxProcessing(abc.ABC):
         :param end_time: Datetime corresponding to the end of the tax period
         :type end_time: datetime.datetime
         """
-        # Initialize temporary array
-        tmp_buy_transactions = []
-        tmp_sell_transactions = []
 
         # Logs info
         fcrypt_log.info("[TAXES PROCESSING] Loading all buy and sell transactions...")
@@ -63,16 +60,16 @@ class TaxProcessing(abc.ABC):
 
             # First the buy transactions
             for buy in crypto_platform.all_buy_transactions_generator(self.currency, end_time):
-                tmp_buy_transactions.append(buy)
+                self.buy_transactions.append(buy)
 
             # Then the sell transactions
             for sell in crypto_platform.all_sell_transactions_generator(self.currency, end_time):
-                tmp_sell_transactions.append(sell)
+                self.sell_transactions.append(sell)
 
         # Logs info
         fcrypt_log.info(f"[TAXES PROCESSING] Number of platforms scanned: {len(self.platforms_list)}")
-        fcrypt_log.info(f"[TAXES PROCESSING] Number of \"BUY\" transactions found: {len(tmp_buy_transactions)}")
-        fcrypt_log.info(f"[TAXES PROCESSING] Number of \"SELL\" transactions found: {len(tmp_sell_transactions)}")
+        fcrypt_log.info(f"[TAXES PROCESSING] Number of \"BUY\" transactions found: {len(self.buy_transactions)}")
+        fcrypt_log.info(f"[TAXES PROCESSING] Number of \"SELL\" transactions found: {len(self.sell_transactions)}")
 
         # Logs info
         fcrypt_log.info("[TAXES PROCESSING] Load done")
