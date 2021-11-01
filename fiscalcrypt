@@ -27,6 +27,7 @@ from dateutil.parser import isoparse
 from decimal import *
 
 from fiscal_crypt.price_finder.cryptowatch_finder import CryptowatchFinder
+from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
 from fiscal_crypt.platforms.coinbase import CoinbaseInterface
 from fiscal_crypt.platforms.coinbase_pro import CoinbaseProInterface
 from fiscal_crypt.tax_processing.french_taxes import FrenchTaxes
@@ -65,15 +66,21 @@ if __name__ == "__main__":
         # Create the cryptowatch interface
         crypto_finder = CryptowatchFinder(cryptowatch_keys["api_key"], "coinbase-pro")
 
+        # Create the CBPRO finder
+        cbpro_finder = CoinbaseProFinder()
+
         # Create coinbase interface
-        coinbase = CoinbaseInterface(coinbase_keys["api_key"], coinbase_keys["api_secret"], crypto_finder)
+        coinbase = CoinbaseInterface(
+            coinbase_keys["api_key"],
+            coinbase_keys["api_secret"],
+            [crypto_finder, cbpro_finder])
 
         # Create coinbase pro interface
         coinbase_pro = CoinbaseProInterface(
             coinbase_pro_keys["api_key"],
             coinbase_pro_keys["api_secret"],
             coinbase_pro_keys["api_passphrase"],
-            crypto_finder)
+            [crypto_finder, cbpro_finder])
 
         # value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
         # normal_value = value.normalize()
