@@ -45,6 +45,7 @@ class FrenchTaxes(TaxProcessing):
 
         # Initialize the different values we will need later
         self.total_acquisition_price = Decimal(0)
+        self.last_init_capital_fraction = Decimal(0)
 
     def _merge_and_pre_process_transactions(self) -> List[dict]:
         """
@@ -173,7 +174,7 @@ class FrenchTaxes(TaxProcessing):
                 global_value_display = self._convert_to_printable_decimal(global_value)
 
                 # Calculating the "plus-value" (capital gain)
-                capital_gain = cession_price - (cession_price * acquisition_price / global_value)
+                capital_gain = cession_price - ((cession_price + cession_fee) * acquisition_price / global_value)
                 capital_gain_display = self._convert_to_printable_decimal(capital_gain)
 
                 # Creation of the date string
@@ -193,14 +194,23 @@ class FrenchTaxes(TaxProcessing):
                     fcrypt_log.info(f"    Acquisition price: {acqu_price_display} {fiat_currency}")
                     fcrypt_log.info(f"    Global value:      {global_value_display} {fiat_currency}")
 
+                    displayable_fraction = self._convert_to_printable_decimal(self.last_init_capital_fraction)
+
                     # Add to cession list
                     tmp_dict = {
-                        "date": date_str,
-                        "capital_gain": str(capital_gain_display),
-                        "cession_price": str(cession_p_display),
-                        "fee": str(cession_fee_display),
-                        "acquisition_price": str(acqu_price_display),
-                        "global_value": str(global_value_display)
+                        "211_date": date_str,
+                        "212_global_value": str(global_value_display),
+                        "213_cession_price": str(cession_p_display + cession_fee_display),
+                        "214_fee": str(cession_fee_display),
+                        "215_cession_price_tax_free": str(cession_p_display),
+                        "216_soulte": str(0),
+                        "217_cession_price_soulte_free": str(cession_p_display + cession_fee_display),
+                        "218_cession_price_tax_and_soulte_free": str(cession_p_display),
+                        "220_total_acquisition_price": str(acqu_price_display + displayable_fraction),
+                        "221_initial_capital_fraction": str(displayable_fraction),
+                        "222_soulte": str(0),
+                        "223_acquisition_price_tax_free": str(acqu_price_display),
+                        "224_capital_gain": str(capital_gain_display),
                     }
 
                     result_dict["cession_list"].append(tmp_dict)
@@ -218,8 +228,8 @@ class FrenchTaxes(TaxProcessing):
                 # ------------------------------------------------------------------------------
 
                 # Calculate the new total acquisition price
-                self.total_acquisition_price = self.total_acquisition_price - \
-                    (cession_price * self.total_acquisition_price / global_value)
+                self.last_init_capital_fraction = (cession_price * self.total_acquisition_price / global_value)
+                self.total_acquisition_price = self.total_acquisition_price - self.last_init_capital_fraction
 
                 # Add to the total capital gain
                 total_capital_gains += capital_gain

@@ -125,7 +125,7 @@ if __name__ == "__main__":
         tax_model = FrenchTaxes("EUR", [coinbase, coinbase_pro])
 
         # Call the function allowing to calculate the taxes
-        tax_model.get_tax_declaration_for("EUR", isoparse("2020-01-01T00:00:00Z"), isoparse("2020-12-31T23:59:59Z"))
+        tax_model.get_tax_declaration_for("EUR", isoparse("2021-01-01T00:00:00Z"), isoparse("2021-12-31T23:59:59Z"))
 
     except Exception as err:
         fcrypt_log.error("[Exception] The following exception occured while fiscalcrypt was running:", str(err))
