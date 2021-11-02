@@ -44,6 +44,22 @@ class TaxProcessing(abc.ABC):
         self.buy_transactions = []
         self.sell_transactions = []
 
+    def _convert_to_printable_decimal(self, number: Decimal) -> Decimal:
+        """
+        This function allows to convert a Decimal to a printable "Devise" (with 2 number after coma)
+
+        :param number: Number to convert to printable
+        :type number: Decimal
+        """
+        # Normalized value
+        norm_nb = number.normalize()
+
+        # Convert to Decimal with tow digits
+        TWOPLACES = Decimal(10) ** -2
+        display_value = norm_nb.quantize(TWOPLACES)
+
+        return display_value
+
     def _load_and_sort_all_transactions(self, end_time: datetime.datetime) -> None:
         """
         This function allows to load in memory all the transactions done by the user until end_time

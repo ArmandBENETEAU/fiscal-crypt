@@ -128,6 +128,9 @@ class FrenchTaxes(TaxProcessing):
         # Logs info
         fcrypt_log.info("[TAXES PROCESSING] Processing the transactions to get capital gains...")
 
+        # Create the total count of capital gains
+        total_capital_gains = Decimal(0)
+
         # Loop over the transactions
         for transaction in preprocessed_transactions:
             current_type = transaction["type"]
@@ -135,28 +138,35 @@ class FrenchTaxes(TaxProcessing):
 
                 # Get the amount bought
                 bought_amount = transaction["amount"]
+                bought_am_display = self._convert_to_printable_decimal(bought_amount)
 
                 # This is a buy, simply increment the acqusition price
                 self.total_acquisition_price += bought_amount
+                acqu_price_display = self._convert_to_printable_decimal(self.total_acquisition_price)
 
                 # Show details to user
                 fcrypt_log.info(
-                    f"[TAXES PROCESSING] BUY OPERATION: +{bought_amount} {fiat_currency} \
-=> {self.total_acquisition_price} {fiat_currency}")
+                    f"[TAXES PROCESSING] BUY OPERATION: +{bought_am_display} {fiat_currency} \
+=> {acqu_price_display} {fiat_currency}")
 
             elif current_type == "sell":
 
                 # Get the cession price
                 cession_price = transaction["amount"]
+                cession_p_display = self._convert_to_printable_decimal(cession_price)
                 # Get the fees
                 cession_fee = transaction["fee"]
+                cession_fee_display = self._convert_to_printable_decimal(cession_fee)
                 # Get the current acquisition price
                 acquisition_price = self.total_acquisition_price
+                acqu_price_display = self._convert_to_printable_decimal(acquisition_price)
                 # Get the global value of the wallets
-                global_value = self._get_overall_wallets_value(transaction["date"])
+                global_value = self._get_overall_wallets_value(transaction["date"] - datetime.timedelta(milliseconds=1))
+                global_value_display = self._convert_to_printable_decimal(global_value)
 
                 # Calculating the "plus-value" (capital gain)
                 capital_gain = cession_price - (cession_price * acquisition_price / global_value)
+                capital_gain_display = self._convert_to_printable_decimal(capital_gain)
 
                 # Creation of the date string
                 date_str = transaction["date"].strftime("%d-%b-%Y (%H:%M:%S.%f)")
@@ -164,15 +174,22 @@ class FrenchTaxes(TaxProcessing):
                 # Displaying the operation
                 fcrypt_log.info(f"[TAXES PROCESSING] SELL OPERATION")
                 fcrypt_log.info(f"    Date:              {date_str}")
-                fcrypt_log.info(f"    Capital gain:      {capital_gain} {fiat_currency}")
-                fcrypt_log.info(f"    Cession price:     {cession_price} {fiat_currency}")
-                fcrypt_log.info(f"    Fee:               {cession_fee} {fiat_currency}")
-                fcrypt_log.info(f"    Acquisition price: {acquisition_price} {fiat_currency}")
-                fcrypt_log.info(f"    Global value:      {global_value} {fiat_currency}")
+                fcrypt_log.info(f"    Capital gain:      {capital_gain_display} {fiat_currency}")
+                fcrypt_log.info(f"    Cession price:     {cession_p_display} {fiat_currency}")
+                fcrypt_log.info(f"    Fee:               {cession_fee_display} {fiat_currency}")
+                fcrypt_log.info(f"    Acquisition price: {acqu_price_display} {fiat_currency}")
+                fcrypt_log.info(f"    Global value:      {global_value_display} {fiat_currency}")
 
                 # Calculate the new total acquisition price
                 self.total_acquisition_price = self.total_acquisition_price - \
                     (cession_price * self.total_acquisition_price / global_value)
 
+                # Add to the total capital gain
+                total_capital_gains += capital_gain
+
             else:
                 fcrypt_log.error(f"[TAXES PROCESSING] Current type not supported: {current_type}")
+
+        # Print the overall capital gain
+        total_cap_price_display = self._convert_to_printable_decimal(total_capital_gains)
+        fcrypt_log.info(f"[TAXES PROCESSING] TOTAL CAPITAL GAIN: {total_cap_price_display} {fiat_currency}")
