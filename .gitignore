@@ -130,3 +130,6 @@ dmypy.json
 
 # API Keys files
 *_keys.json
+
+# Results json file
+results.json

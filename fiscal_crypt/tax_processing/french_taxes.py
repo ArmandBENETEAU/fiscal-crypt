@@ -21,7 +21,7 @@ File containing the FrenchTaxes class
 
 from abc import abstractmethod
 import datetime
-import re
+import json
 
 from decimal import *
 from dateutil.parser import isoparse
@@ -131,6 +131,14 @@ class FrenchTaxes(TaxProcessing):
         # Create the total count of capital gains
         total_capital_gains = Decimal(0)
 
+        # Create the dictionary that will contains the result
+        result_dict = {
+            "start_time": start_time.strftime("%d-%b-%Y (%H:%M:%S.%f)"),
+            "end_time": end_time.strftime("%d-%b-%Y (%H:%M:%S.%f)"),
+            "fiat_currency": fiat_currency,
+            "cession_list": []
+        }
+
         # Loop over the transactions
         for transaction in preprocessed_transactions:
             current_type = transaction["type"]
@@ -171,14 +179,43 @@ class FrenchTaxes(TaxProcessing):
                 # Creation of the date string
                 date_str = transaction["date"].strftime("%d-%b-%Y (%H:%M:%S.%f)")
 
-                # Displaying the operation
-                fcrypt_log.info(f"[TAXES PROCESSING] SELL OPERATION")
-                fcrypt_log.info(f"    Date:              {date_str}")
-                fcrypt_log.info(f"    Capital gain:      {capital_gain_display} {fiat_currency}")
-                fcrypt_log.info(f"    Cession price:     {cession_p_display} {fiat_currency}")
-                fcrypt_log.info(f"    Fee:               {cession_fee_display} {fiat_currency}")
-                fcrypt_log.info(f"    Acquisition price: {acqu_price_display} {fiat_currency}")
-                fcrypt_log.info(f"    Global value:      {global_value_display} {fiat_currency}")
+                # ------------------------------------------------------------------------------
+                # Display and outputs ----------------------------------------------------------
+                # ------------------------------------------------------------------------------
+                if (transaction["date"] >= start_time) and (transaction["date"] <= end_time):
+
+                    # Displaying the operation
+                    fcrypt_log.info(f"[TAXES PROCESSING] SELL OPERATION")
+                    fcrypt_log.info(f"    Date:              {date_str}")
+                    fcrypt_log.info(f"    Capital gain:      {capital_gain_display} {fiat_currency}")
+                    fcrypt_log.info(f"    Cession price:     {cession_p_display} {fiat_currency}")
+                    fcrypt_log.info(f"    Fee:               {cession_fee_display} {fiat_currency}")
+                    fcrypt_log.info(f"    Acquisition price: {acqu_price_display} {fiat_currency}")
+                    fcrypt_log.info(f"    Global value:      {global_value_display} {fiat_currency}")
+
+                    # Add to cession list
+                    tmp_dict = {
+                        "date": date_str,
+                        "capital_gain": str(capital_gain_display),
+                        "cession_price": str(cession_p_display),
+                        "fee": str(cession_fee_display),
+                        "acquisition_price": str(acqu_price_display),
+                        "global_value": str(global_value_display)
+                    }
+
+                    result_dict["cession_list"].append(tmp_dict)
+
+                elif (transaction["date"] < start_time):
+                    # Say the user we are processing older transactions
+                    fcrypt_log.info(
+                        f"[TAXES PROCESSING] OLDER SELL OPERATION ({date_str} - Cession price: {cession_p_display} {fiat_currency}")
+
+                elif (transaction["date"] > end_time):
+                    # Say to the user that we have reached the end of the operations he wanted
+                    fcrypt_log.info(f"[TAXES PROCESSING] END OF WANTED OPERATIONS")
+                    break
+                # ------------------------------------------------------------------------------
+                # ------------------------------------------------------------------------------
 
                 # Calculate the new total acquisition price
                 self.total_acquisition_price = self.total_acquisition_price - \
@@ -193,3 +230,9 @@ class FrenchTaxes(TaxProcessing):
         # Print the overall capital gain
         total_cap_price_display = self._convert_to_printable_decimal(total_capital_gains)
         fcrypt_log.info(f"[TAXES PROCESSING] TOTAL CAPITAL GAIN: {total_cap_price_display} {fiat_currency}")
+
+        result_dict["total_capital_gain"] = str(total_cap_price_display)
+
+        # Print the result in a json file
+        with open('results.json', 'w') as fp:
+            json.dump(result_dict, fp, indent=4)
