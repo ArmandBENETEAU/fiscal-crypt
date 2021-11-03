@@ -215,6 +215,9 @@ class FrenchTaxes(TaxProcessing):
 
                     result_dict["cession_list"].append(tmp_dict)
 
+                    # Add to the total capital gain
+                    total_capital_gains += capital_gain
+
                 elif (transaction["date"] < start_time):
                     # Say the user we are processing older transactions
                     fcrypt_log.info(
@@ -230,9 +233,6 @@ class FrenchTaxes(TaxProcessing):
                 # Calculate the new total acquisition price
                 self.last_init_capital_fraction = (cession_price * self.total_acquisition_price / global_value)
                 self.total_acquisition_price = self.total_acquisition_price - self.last_init_capital_fraction
-
-                # Add to the total capital gain
-                total_capital_gains += capital_gain
 
             else:
                 fcrypt_log.error(f"[TAXES PROCESSING] Current type not supported: {current_type}")

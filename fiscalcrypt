@@ -63,17 +63,23 @@ if __name__ == "__main__":
             fcrypt_log.error("[CONFIG] Missing keys in configuration file")
             sys.exit(1)
 
+        # Request the year wanted for tax declaration to the user
+        fiscal_year = input("[FISCALCRYPT] Please enter the year wanted for tax declaration (ex: 2020) > ")
+
         # Create the cryptowatch interface
         crypto_finder = CryptowatchFinder(cryptowatch_keys["api_key"], "coinbase-pro")
 
         # Create the CBPRO finder
         cbpro_finder = CoinbaseProFinder()
 
+        # Create the cryptowatch "Kraken" interface
+        cryptowatch_kraken = CryptowatchFinder(cryptowatch_keys["api_key"], "kraken")
+
         # Create coinbase interface
         coinbase = CoinbaseInterface(
             coinbase_keys["api_key"],
             coinbase_keys["api_secret"],
-            [crypto_finder, cbpro_finder])
+            [crypto_finder, cbpro_finder, cryptowatch_kraken])
 
         # Create coinbase pro interface
         coinbase_pro = CoinbaseProInterface(
@@ -82,50 +88,10 @@ if __name__ == "__main__":
             coinbase_pro_keys["api_passphrase"],
             [crypto_finder, cbpro_finder])
 
-        # value = coinbase.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
-        # normal_value = value.normalize()
-
-        # print("!!!!!!! Calculating the wallet value for XLM")
-        # value = coinbase_pro.get_wallet_value_at("XLM", "EUR", isoparse("2020-02-14T00:30:00Z"))
-        # normal_value = value.normalize()
-
-        # value = coinbase.get_all_wallets_value("EUR", isoparse("2020-02-14T00:30:00Z"))
-        # normal_value = value.normalize()
-
-        # Round to two places
-        # TWOPLACES = Decimal(10) ** -2
-        # display_value = normal_value.quantize(TWOPLACES)
-
-        # print(f"VALUE {str(display_value)} €")
-
-        # # Get all the sell transaction on Coinbase Pro
-        # print("!!!!!!! Getting all sell transaction on Coinbase Pro !!!!")
-        # all_transactions = coinbase_pro.all_sell_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
-        # for transaction in all_transactions:
-        #     print("Transaction: ", transaction)
-
-        # # Get all the buy transaction on Coinbase Pro
-        # print("!!!!!!! Getting all buy transaction on Coinbase Pro !!!!")
-        # all_transactions = coinbase_pro.all_buy_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
-        # for transaction in all_transactions:
-        #     print("Transaction: ", transaction)
-
-        # # Get all the sell transaction on Coinbase
-        # print("!!!!!!! Getting all sell transaction on Coinbase !!!!")
-        # all_transactions = coinbase.all_sell_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
-        # for transaction in all_transactions:
-        #     print("Transaction: ", transaction)
-
-        # # Get all the buy transaction on Coinbase
-        # print("!!!!!!! Getting all buy transaction on Coinbase !!!!")
-        # all_transactions = coinbase.all_buy_transactions_generator("EUR", isoparse("2021-07-01T00:00:00Z"))
-        # for transaction in all_transactions:
-        #     print("Transaction: ", transaction)
-
         tax_model = FrenchTaxes("EUR", [coinbase, coinbase_pro])
 
         # Call the function allowing to calculate the taxes
-        tax_model.get_tax_declaration_for("EUR", isoparse("2021-01-01T00:00:00Z"), isoparse("2021-12-31T23:59:59Z"))
+        tax_model.get_tax_declaration_for("EUR", isoparse(f"{fiscal_year}-01-01T00:00:00Z"), isoparse(f"{fiscal_year}-12-31T23:59:59Z"))
 
     except Exception as err:
         fcrypt_log.error("[Exception] The following exception occured while fiscalcrypt was running:", str(err))
