@@ -28,11 +28,10 @@ import re
 from decimal import *
 from dateutil.parser import isoparse
 
-import urllib.parse as urlparse
-from urllib.parse import parse_qs
+from typing import List
 
-from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 from fiscal_crypt.platforms.abs_platforms import PlatformInterface
+from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 from fiscal_crypt.fcrypt_logging import fcrypt_log
 
 
@@ -43,9 +42,9 @@ class CoinbaseProInterface(PlatformInterface):
     all the transactions that can be impacted by taxes
     """
 
-    def __init__(self, api_key: str, api_secret: str, api_passphrase: str, price_finder: PriceFinder) -> None:
+    def __init__(self, api_key: str, api_secret: str, api_passphrase: str, price_finder: List[PriceFinder]) -> None:
         # Call the upper class initialization
-        super().__init__()
+        super().__init__(price_finder)
 
         # Create the Coinbase Pro authenticated client that we will use
         self.api_client = cbpro.AuthenticatedClient(api_key, api_secret, api_passphrase)
@@ -53,13 +52,10 @@ class CoinbaseProInterface(PlatformInterface):
         # Initialize what will be used next
         self.fee = []
 
-        # Initialize the price finder
-        self.price_finder = price_finder
-
         # Load all accounts and transactions
-        fcrypt_log.info("[INITIALIZATION] Loading all accounts...")
+        fcrypt_log.info("[COINBASE PRO][INITIALIZATION] Loading all accounts...")
         self._load_all_accounts()
-        fcrypt_log.info("[INITIALIZATION] Loading all transactions...")
+        fcrypt_log.info("[COINBASE PRO][INITIALIZATION] Loading all transactions...")
         self._load_all_transactions()
 
     @staticmethod
@@ -80,7 +76,7 @@ class CoinbaseProInterface(PlatformInterface):
         # Return the account id
         return items[3]
 
-    def _find_fee_for_order(self, order_id: str):
+    def _find_fee_for_order(self, order_id: str, trade_id: str):
         """
         This function allows to return the fee value for a given order id
 
@@ -93,7 +89,8 @@ class CoinbaseProInterface(PlatformInterface):
         # Loop in the fee tab
         for tmp_fee in self.fee:
             tmp_order_id = tmp_fee["details"]["order_id"]
-            if tmp_order_id == order_id:
+            tmp_trade_id = tmp_fee["details"]["trade_id"]
+            if (tmp_order_id == order_id) and (tmp_trade_id == trade_id):
                 fee_value = tmp_fee["amount"]
                 break
 
@@ -224,20 +221,20 @@ class CoinbaseProInterface(PlatformInterface):
         time_str = str(time)
         normal_balance = str(balance.normalize())
 
-        # Print info
-        fcrypt_log.info(f"[WALLET] Balance at {time_str}: {normal_balance} {crypto_currency}")
+        # Print debug
+        fcrypt_log.debug(f"[WALLET] Balance at {time_str}: {normal_balance} {crypto_currency}")
 
         if balance != 0:
 
             # Now get the equivalent value in fiat
             rate_currency = crypto_currency + "-" + fiat_currency
-            rate_value = self.price_finder.get_rate_of(rate_currency, time)
+            rate_value = self._find_rate_value_from_finders(rate_currency, time)
 
             if rate_value == Decimal(0):
                 # Print error
-                fcrypt_log.error(
-                    f"[WALLET] NO RATE FOUND FOR NOT NULL BALANCE !!! Currency: {crypto_currency}",
-                    f"Fiat: {fiat_currency}")
+                fcrypt_log.warning(
+                    f"[WALLET] NO RATE FOUND FOR NOT NULL BALANCE !!! Currency: {crypto_currency} \
+ - Fiat: {fiat_currency}")
                 # Return 0
                 wallet_value = Decimal(0)
             else:
@@ -245,7 +242,7 @@ class CoinbaseProInterface(PlatformInterface):
                 wallet_value = rate_value * balance
 
                 # Print info
-                fcrypt_log.info(
+                fcrypt_log.debug(
                     f"[WALLET] Value of {crypto_currency} wallet at {time_str}: {wallet_value} {fiat_currency}")
 
         else:
@@ -290,7 +287,7 @@ class CoinbaseProInterface(PlatformInterface):
         account_id = self._find_account_for_currency(currency)
 
         if account_id == "":
-            raise ValueError("Account not found with the given currency")
+            raise ValueError(f"Account not found with the given currency: {currency}")
 
         # Now that we have the right account id (for EUR for example), get all the sell operations
         for transaction in self.transactions:
@@ -302,7 +299,8 @@ class CoinbaseProInterface(PlatformInterface):
                 if (transaction_time < end_time) and (not str.startswith(amount, "-")):
                     # This is something we want, find the corresponding fee
                     order_id = transaction["details"]["order_id"]
-                    fee_amount = self._find_fee_for_order(order_id)
+                    trade_id = transaction["details"]["trade_id"]
+                    fee_amount = self._find_fee_for_order(order_id, trade_id)
 
                     # Declare the dictionnary to return
                     tmp_dict = {
@@ -340,7 +338,8 @@ class CoinbaseProInterface(PlatformInterface):
                 if (transaction_time < end_time) and str.startswith(amount, "-"):
                     # This is something we want, find the corresponding fee
                     order_id = transaction["details"]["order_id"]
-                    fee_amount = self._find_fee_for_order(order_id)
+                    trade_id = transaction["details"]["trade_id"]
+                    fee_amount = self._find_fee_for_order(order_id, trade_id)
 
                     # Declare the dictionnary to return
                     tmp_dict = {

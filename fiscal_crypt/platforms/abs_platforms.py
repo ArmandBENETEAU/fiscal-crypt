@@ -23,7 +23,9 @@ import abc
 import datetime
 
 from decimal import *
-from typing import Generator
+from typing import Generator, List
+
+from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 
 
 class PlatformInterface(abc.ABC):
@@ -33,9 +35,12 @@ class PlatformInterface(abc.ABC):
     at a given time. For each platform we want to use, a sub-class of "PlatformInterface"
     """
 
-    def __init__(self) -> None:
+    def __init__(self, price_finder: List[PriceFinder]) -> None:
         self.accounts = []
         self.transactions = []
+
+        # Initialize the price finder
+        self.price_finder = price_finder
 
     def _find_account_for_currency(self, currency: str) -> str:
         """
@@ -57,6 +62,40 @@ class PlatformInterface(abc.ABC):
                 break
 
         return account_id
+
+    def _find_rate_value_from_finders(self, currency: str, time: datetime.datetime) -> Decimal:
+        """
+        This function allows to get the rate of a crypto-currency with
+        a fiat currency at a given datetime. It tries on every finders available as long as a 0
+        value is returned.
+
+        :param currency: (Currency-fiat) we want the price of, example: BTC-EUR
+        :type currency: str
+        :param time: Time where the price is wanted
+        :type time: datetime.datetime
+        :returns: Decimal -- The average rate of the given currency
+        """
+        # Initialize the return value
+        rate_value = Decimal(0)
+
+        # Go over the different price finders available
+        for finder in self.price_finder:
+
+            # Get the evaluation of price from this finder
+            rate_value = finder.get_rate_of(currency, time)
+
+            if rate_value != Decimal(0):
+                break
+
+        # Check that the rate is not 0, if it is, request a manual entry
+        if rate_value == Decimal(0):
+            date_str = time.strftime("%d-%b-%Y (%H:%M:%S.%f)")
+            user_input = input(
+                f"No rate found for \"{currency}\" on {date_str}, please provide it manually (ex: \"1.87\"): ")
+            # Convert the input to Decimal
+            rate_value = Decimal(user_input)
+
+        return rate_value
 
     @abc.abstractmethod
     def get_all_wallets_value(self, currency: str, time: datetime.datetime) -> Decimal:

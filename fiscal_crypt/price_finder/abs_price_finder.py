@@ -21,6 +21,7 @@ File containing the PriceFinder abstract class
 
 import abc
 import datetime
+from decimal import Decimal
 
 
 class PriceFinder(abc.ABC):
@@ -31,7 +32,7 @@ class PriceFinder(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_rate_of(self, currency: str, time: datetime.datetime) -> float:
+    def get_rate_of(self, currency: str, time: datetime.datetime) -> Decimal:
         """
         This function allows to get the price of a crypto-currency at a given
         datetime.

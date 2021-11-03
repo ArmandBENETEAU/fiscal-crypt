@@ -30,6 +30,8 @@ from dateutil.parser import isoparse
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
 
+from typing import List
+
 from coinbase.wallet.client import Client
 from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 from fiscal_crypt.platforms.abs_platforms import PlatformInterface
@@ -43,20 +45,17 @@ class CoinbaseInterface(PlatformInterface):
     all the transactions that can be impacted by taxes
     """
 
-    def __init__(self, api_key: str, api_secret: str, price_finder: PriceFinder) -> None:
+    def __init__(self, api_key: str, api_secret: str, price_finder: List[PriceFinder]) -> None:
         # Call the upper class initialization
-        super().__init__()
+        super().__init__(price_finder)
 
         # Create the Coinbase authenticated client that we will use
         self.api_client = Client(api_key, api_secret)
 
-        # Initialize the price finder
-        self.price_finder = price_finder
-
         # Load all accounts and transactions
-        fcrypt_log.info("[INITIALIZATION] Loading all accounts...")
+        fcrypt_log.info("[COINBASE][INITIALIZATION] Loading all accounts...")
         self._load_all_accounts()
-        fcrypt_log.info("[INITIALIZATION] Loading all transactions...")
+        fcrypt_log.info("[COINBASE][INITIALIZATION] Loading all transactions...")
         self._load_all_transactions()
 
     @staticmethod
@@ -231,20 +230,20 @@ class CoinbaseInterface(PlatformInterface):
         time_str = str(time)
         normal_balance = str(balance.normalize())
 
-        # Print info
-        fcrypt_log.info(f"[WALLET] Balance at {time_str}: {normal_balance} {crypto_currency}")
+        # Print debug
+        fcrypt_log.debug(f"[WALLET] Balance at {time_str}: {normal_balance} {crypto_currency}")
 
         if balance != 0:
 
             # Now get the equivalent value in fiat
             rate_currency = crypto_currency + "-" + fiat_currency
-            rate_value = self.price_finder.get_rate_of(rate_currency, time)
+            rate_value = self._find_rate_value_from_finders(rate_currency, time)
 
             if rate_value == Decimal(0):
                 # Print error
-                fcrypt_log.error(
-                    f"[WALLET] NO RATE FOUND FOR NOT NULL BALANCE !!! Currency: {crypto_currency}",
-                    f"Fiat: {fiat_currency}")
+                fcrypt_log.warning(
+                    f"[WALLET] NO RATE FOUND FOR NOT NULL BALANCE !!! Currency: {crypto_currency} \
+ - Fiat: {fiat_currency}")
                 # Return 0
                 wallet_value = Decimal(0)
             else:
@@ -252,7 +251,7 @@ class CoinbaseInterface(PlatformInterface):
                 wallet_value = rate_value * balance
 
                 # Print info
-                fcrypt_log.info(
+                fcrypt_log.debug(
                     f"[WALLET] Value of {crypto_currency} wallet at {time_str}: {wallet_value} {fiat_currency}")
 
         else:
@@ -300,7 +299,7 @@ class CoinbaseInterface(PlatformInterface):
         account_to_ignore_id = self._find_account_for_currency(currency)
 
         if account_to_ignore_id == "":
-            raise ValueError("Account not found with the given currency")
+            raise ValueError(f"Account not found with the given currency: {currency}")
 
         # Now that we have the right account
         for transaction in self.transactions:
@@ -355,7 +354,7 @@ class CoinbaseInterface(PlatformInterface):
         account_to_ignore_id = self._find_account_for_currency(currency)
 
         if account_to_ignore_id == "":
-            raise ValueError("Account not found with the given currency")
+            raise ValueError(f"Account not found with the given currency: {currency}")
 
         # Now that we have the right account
         for transaction in self.transactions:
