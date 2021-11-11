@@ -22,10 +22,11 @@ Main script to run fiscalcrypt tool
 """
 import json
 import sys
-from datetime import datetime
 from dateutil.parser import isoparse
 from decimal import *
+from typing import Dict
 
+from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 from fiscal_crypt.price_finder.cryptowatch_finder import CryptowatchFinder
 from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
 from fiscal_crypt.platforms.coinbase import CoinbaseInterface
@@ -36,6 +37,80 @@ from fiscal_crypt.fcrypt_logging import fcrypt_log
 COINBASE_API_KEYS_FILE = "coinbase_keys.json"
 COINBASE_PRO_API_KEYS_FILE = "coinbase_pro_keys.json"
 CRYPTOWATCH_API_KEYS_FILE = "cryptowatch_keys.json"
+
+
+class FCryptError(Exception):
+    pass
+
+
+class NoPriceFindersError(FCryptError):
+    pass
+
+
+class PriceFinderBadlyDefined(FCryptError):
+    pass
+
+
+def get_price_finders_from_config(config_file: str) -> Dict[str, PriceFinder]:
+    """
+    This function allows to get a dictionary containing all the prices finders
+    from the configuration file given by the user
+
+    :param config_file: Path to the configuration file given by the user
+    :type config_file: str
+    :returns: Dict[PriceFinder] -- Dictionary containing the price finders
+    """
+    # Create the resulting dictionary
+    result = {}
+
+    # Try to read the file
+    with open(config_file) as cfg_file:
+        # Read the config
+        config = json.load(cfg_file)
+
+        # Try to get the "price_finders" list
+        price_finders_list = config.get("price_finders", [])
+
+        # If empty list, raise an exception
+        if len(price_finders_list) <= 0:
+            raise NoPriceFindersError
+
+        # Loop over the list and create every price finders
+        for price_finder in price_finders_list:
+
+            # Get the type of price finder to create
+            pfinder_type = price_finder.get("type")
+            if pfinder_type is None:
+                raise PriceFinderBadlyDefined("No type found for one price finder")
+
+            # According to the type, create it
+            if pfinder_type == "cryptowatch":
+
+                # Get the "name", "api_key" and "exchange"
+                pfinder_name = price_finder.get("name", "")
+                pfinder_key = price_finder.get("api_key", "")
+                pfinder_exchange = price_finder.get("exchange", "")
+
+                if (pfinder_name == "") or (pfinder_key == "") or (pfinder_exchange == ""):
+                    raise PriceFinderBadlyDefined("One of the following field is empty for \
+                        the cryptowatch price finder: \"name\", \"api_key\" or \"exchange\"")
+
+                # Create the price finder
+                result[pfinder_name] = CryptowatchFinder(pfinder_key, pfinder_exchange)
+
+            elif pfinder_type == "coinbase-pro":
+
+                # Get the "name"
+                pfinder_name = price_finder.get("name", "")
+
+                if (pfinder_name == ""):
+                    raise PriceFinderBadlyDefined("The \"name\" field is empty for the coinbase-pro price finder")
+
+                # Create the price finder
+                result[pfinder_name] = CoinbaseProFinder()
+
+    return result
+
 
 if __name__ == "__main__":
 
@@ -48,13 +123,6 @@ if __name__ == "__main__":
             fcrypt_log.error("[CONFIG] Missing keys in configuration file")
             sys.exit(1)
 
-        with open(CRYPTOWATCH_API_KEYS_FILE) as keys_file:
-            cryptowatch_keys = json.load(keys_file)
-
-        if ("api_key" not in cryptowatch_keys):
-            fcrypt_log.error("[CONFIG] Missing keys in configuration file")
-            sys.exit(1)
-
         with open(COINBASE_PRO_API_KEYS_FILE) as keys_file:
             coinbase_pro_keys = json.load(keys_file)
 
@@ -63,35 +131,38 @@ if __name__ == "__main__":
             fcrypt_log.error("[CONFIG] Missing keys in configuration file")
             sys.exit(1)
 
+        # Try to get the file passed in argument
+        if len(sys.argv) < 2:
+            config_file = "fiscalcrypt_config.json"
+        else:
+            config_file = sys.argv[1]
+
         # Request the year wanted for tax declaration to the user
         fiscal_year = input("[FISCALCRYPT] Please enter the year wanted for tax declaration (ex: 2020) > ")
 
-        # Create the cryptowatch interface
-        crypto_finder = CryptowatchFinder(cryptowatch_keys["api_key"], "coinbase-pro")
-
-        # Create the CBPRO finder
-        cbpro_finder = CoinbaseProFinder()
-
-        # Create the cryptowatch "Kraken" interface
-        cryptowatch_kraken = CryptowatchFinder(cryptowatch_keys["api_key"], "kraken")
+        # Create the price finders dictionaries from the configuration file
+        price_finders_dict = get_price_finders_from_config(config_file)
 
         # Create coinbase interface
         coinbase = CoinbaseInterface(
             coinbase_keys["api_key"],
             coinbase_keys["api_secret"],
-            [crypto_finder, cbpro_finder, cryptowatch_kraken])
+            [price_finders_dict["cryptowatch-cbpro"], price_finders_dict["coinbase-pro"],
+             price_finders_dict["cryptowatch-kraken"]])
 
         # Create coinbase pro interface
         coinbase_pro = CoinbaseProInterface(
             coinbase_pro_keys["api_key"],
             coinbase_pro_keys["api_secret"],
             coinbase_pro_keys["api_passphrase"],
-            [crypto_finder, cbpro_finder])
+            [price_finders_dict["cryptowatch-cbpro"], price_finders_dict["coinbase-pro"]])
 
         tax_model = FrenchTaxes("EUR", [coinbase, coinbase_pro])
 
         # Call the function allowing to calculate the taxes
-        tax_model.get_tax_declaration_for("EUR", isoparse(f"{fiscal_year}-01-01T00:00:00Z"), isoparse(f"{fiscal_year}-12-31T23:59:59Z"))
+        tax_model.get_tax_declaration_for("EUR",
+                                          isoparse(f"{fiscal_year}-01-01T00:00:00Z"),
+                                          isoparse(f"{fiscal_year}-12-31T23:59:59Z"))
 
     except Exception as err:
         fcrypt_log.error("[Exception] The following exception occured while fiscalcrypt was running:", str(err))

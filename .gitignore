@@ -133,3 +133,6 @@ dmypy.json
 
 # Results json file
 results.json
+
+# True configuration file
+*_config.json
