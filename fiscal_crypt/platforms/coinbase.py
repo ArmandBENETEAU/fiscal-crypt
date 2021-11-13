@@ -19,7 +19,6 @@ File containing the CoinbaseInterface class
     https://www.gnu.org/licenses/gpl-3.0.html.
 """
 
-from abc import abstractmethod
 import datetime
 import re
 
