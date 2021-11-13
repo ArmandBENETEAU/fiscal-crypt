@@ -24,19 +24,19 @@ import json
 import sys
 from dateutil.parser import isoparse
 from decimal import *
-from typing import Dict
+from typing import Dict, List
 
 from fiscal_crypt.price_finder.abs_price_finder import PriceFinder
 from fiscal_crypt.price_finder.cryptowatch_finder import CryptowatchFinder
 from fiscal_crypt.price_finder.coinbasepro_finder import CoinbaseProFinder
+
+from fiscal_crypt.platforms.abs_platforms import PlatformInterface
 from fiscal_crypt.platforms.coinbase import CoinbaseInterface
 from fiscal_crypt.platforms.coinbase_pro import CoinbaseProInterface
-from fiscal_crypt.tax_processing.french_taxes import FrenchTaxes
-from fiscal_crypt.fcrypt_logging import fcrypt_log
 
-COINBASE_API_KEYS_FILE = "coinbase_keys.json"
-COINBASE_PRO_API_KEYS_FILE = "coinbase_pro_keys.json"
-CRYPTOWATCH_API_KEYS_FILE = "cryptowatch_keys.json"
+from fiscal_crypt.tax_processing.french_taxes import FrenchTaxes
+
+from fiscal_crypt.fcrypt_logging import fcrypt_log
 
 
 class FCryptError(Exception):
@@ -48,6 +48,14 @@ class NoPriceFindersError(FCryptError):
 
 
 class PriceFinderBadlyDefined(FCryptError):
+    pass
+
+
+class NoExchangePlatformFound(FCryptError):
+    pass
+
+
+class ExchangePlatformBadlyDefined(FCryptError):
     pass
 
 
@@ -112,25 +120,101 @@ def get_price_finders_from_config(config_file: str) -> Dict[str, PriceFinder]:
     return result
 
 
+def get_platforms_from_config(config_file: str, finders: Dict[str, PriceFinder]) -> List[PlatformInterface]:
+    """
+    This function allows to get a list containing all the exchanges platform objects
+    necessary to calculate the tax declarations.
+    In order to get that, the function needs the configuration file path and the dictionary
+    containing the price finders.
+
+    :param config_file: Path to the configuration file given by the user
+    :type config_file: str
+    :param finders: Dictionary containing the price finders as defined by the user
+    :type finders: Dict[str, PriceFinder]
+    :returns: List[PlatformInterface] -- List containing the exchanges interfaces
+    """
+    # Create the resulting list
+    result = []
+
+    # Try to read the file
+    with open(config_file) as cfg_file:
+        # Read the config
+        config = json.load(cfg_file)
+
+        # Try to get the "platforms" list
+        platforms_list = config.get("platforms", [])
+
+        # If empty list, raise an exception
+        if len(platforms_list) <= 0:
+            raise NoExchangePlatformFound
+
+        # Loop over the list and create every price finders
+        for platform in platforms_list:
+
+            # Get the type of price finder to create
+            platform_type = platform.get("type")
+            if platform_type is None:
+                raise ExchangePlatformBadlyDefined("No type found for one platform")
+
+            # According to the type, create it
+            if platform_type == "coinbase":
+
+                # Get the "api_key" and "api_secret"
+                platform_key = platform.get("api_key", "")
+                platform_secret = platform.get("api_secret", "")
+
+                if (platform_key == "") or (platform_secret == ""):
+                    raise ExchangePlatformBadlyDefined("One of the following field is empty for \
+                        the coinbase platform: \"api_key\" or \"api_secret\"")
+
+                # Get the price finders for this platform
+                platform_finders = platform.get("price_finders", [])
+
+                if len(platform_finders) <= 0:
+                    raise ExchangePlatformBadlyDefined("No price finder defined for coinbase platform")
+
+                # Create the list containing the finders
+                finders_obj_list = []
+                for finder in platform_finders:
+                    finders_obj_list.append(finders[finder])
+
+                # Create the platform and add it to the list
+                coinbase_platform = CoinbaseInterface(platform_key, platform_secret, finders_obj_list)
+                result.append(coinbase_platform)
+
+            elif platform_type == "coinbase-pro":
+
+                # Get the "api_key", "api_secret" and "api_passphrase"
+                platform_key = platform.get("api_key", "")
+                platform_secret = platform.get("api_secret", "")
+                platform_passphrase = platform.get("api_passphrase", "")
+
+                if (platform_key == "") or (platform_secret == "") or (platform_passphrase == ""):
+                    raise ExchangePlatformBadlyDefined("One of the following field is empty for \
+                        the coinbase platform: \"api_key\", \"api_secret\" or \"api_passphrase\"")
+
+                # Get the price finders for this platform
+                platform_finders = platform.get("price_finders", [])
+
+                if len(platform_finders) <= 0:
+                    raise ExchangePlatformBadlyDefined("No price finder defined for coinbase-pro platform")
+
+                # Create the list containing the finders
+                finders_obj_list = []
+                for finder in platform_finders:
+                    finders_obj_list.append(finders[finder])
+
+                # Create the platform and add it to the list
+                coinbase_pro_platform = CoinbaseProInterface(platform_key, platform_secret,
+                                                             platform_passphrase, finders_obj_list)
+                result.append(coinbase_pro_platform)
+
+    return result
+
+
 if __name__ == "__main__":
 
     try:
-        # Get the file containing the keys
-        with open(COINBASE_API_KEYS_FILE) as keys_file:
-            coinbase_keys = json.load(keys_file)
-
-        if ("api_key" not in coinbase_keys) or ("api_secret" not in coinbase_keys):
-            fcrypt_log.error("[CONFIG] Missing keys in configuration file")
-            sys.exit(1)
-
-        with open(COINBASE_PRO_API_KEYS_FILE) as keys_file:
-            coinbase_pro_keys = json.load(keys_file)
-
-        if (("api_key" not in coinbase_pro_keys) or ("api_secret" not in coinbase_pro_keys) or
-                ("api_passphrase" not in coinbase_pro_keys)):
-            fcrypt_log.error("[CONFIG] Missing keys in configuration file")
-            sys.exit(1)
-
         # Try to get the file passed in argument
         if len(sys.argv) < 2:
             config_file = "fiscalcrypt_config.json"
@@ -143,21 +227,10 @@ if __name__ == "__main__":
         # Create the price finders dictionaries from the configuration file
         price_finders_dict = get_price_finders_from_config(config_file)
 
-        # Create coinbase interface
-        coinbase = CoinbaseInterface(
-            coinbase_keys["api_key"],
-            coinbase_keys["api_secret"],
-            [price_finders_dict["cryptowatch-cbpro"], price_finders_dict["coinbase-pro"],
-             price_finders_dict["cryptowatch-kraken"]])
+        # Create the platforms objects from configuration files and price finders dictionaries
+        platform_list = get_platforms_from_config(config_file, price_finders_dict)
 
-        # Create coinbase pro interface
-        coinbase_pro = CoinbaseProInterface(
-            coinbase_pro_keys["api_key"],
-            coinbase_pro_keys["api_secret"],
-            coinbase_pro_keys["api_passphrase"],
-            [price_finders_dict["cryptowatch-cbpro"], price_finders_dict["coinbase-pro"]])
-
-        tax_model = FrenchTaxes("EUR", [coinbase, coinbase_pro])
+        tax_model = FrenchTaxes("EUR", platform_list)
 
         # Call the function allowing to calculate the taxes
         tax_model.get_tax_declaration_for("EUR",
