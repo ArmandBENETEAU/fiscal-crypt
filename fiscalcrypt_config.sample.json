@@ -1,0 +1,44 @@
+{
+    "price_finders": [
+        {
+            "name": "cryptowatch-cbpro",
+            "type": "cryptowatch",
+            "api_key": "myapikey-donotcommityourkeysonpublicrepos!!",
+            "exchange": "coinbase-pro"
+        },
+        {
+            "name": "cryptowatch-kraken",
+            "type": "cryptowatch",
+            "api_key": "myapikey-donotcommityourkeysonpublicrepos!!",
+            "exchange": "kraken"
+        },
+        {
+            "name": "coinbase-pro",
+            "type": "coinbase-pro"
+        }
+    ],
+    "platforms": [
+        {
+            "name": "coinbase",
+            "type": "coinbase",
+            "api_key": "myapikey-donotcommityourkeysonpublicrepos!!",
+            "api_secret": "myapisecret-donotcommityourkeysonpublicrepos!!",
+            "price_finders": [
+                "cryptowatch-cbpro",
+                "coinbase-pro",
+                "cryptowatch-kraken"
+            ]
+        },
+        {
+            "name": "coinbase-pro",
+            "type": "coinbase-pro",
+            "api_key": "myapikey-donotcommityourkeysonpublicrepos!!",
+            "api_secret": "myapisecret-donotcommityourkeysonpublicrepos!!",
+            "api_passphrase": "myapipassphrase-donotcommityourkeysonpublicrepos!!",
+            "price_finders": [
+                "cryptowatch-cbpro",
+                "coinbase-pro"
+            ]
+        }
+    ]
+}
